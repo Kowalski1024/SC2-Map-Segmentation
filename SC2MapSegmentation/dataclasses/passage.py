@@ -8,9 +8,9 @@ from sc2.position import Point2
 @dataclass(frozen=True)
 class Passage:
     game_info: GameInfo
-    destructables: set[int]
-    minerals: set[int]
-    points: dict[int, set[Point2]]
+    points: list[set[Point2]]
+    destructables: set[int] | None
+    minerals: set[int] | None
 
 
 @dataclass(frozen=True)
