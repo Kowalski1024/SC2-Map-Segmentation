@@ -1,57 +1,64 @@
-from typing import Callable, Iterable
-from collections import deque
+from typing import Iterable
 
-import numpy as np
-
+from sc2.game_info import GameInfo
 from sc2.position import Point2
-from sc2.units import Units
-
-from .utils import unbuildable_pathing_grid, numpy_bfs, find_surrounding, group_points
+from sc2.unit import Unit
 from .dataclasses.passage import Passage, Ramp, ChokePoint
+from .utils import unbuildable_pathing_grid, flood_fill_all, find_surrounding
 
 
-Point = tuple[int, int]
+def passage_builder(
+        game_info: GameInfo,
+        points: Iterable[Point2],
+        destructables: Iterable[Unit],
+        minerals: Iterable[Unit]
+) -> Passage:
+    def check_height(a: Point2, b: Point2) -> bool:
+        return game_info.terrain_height[a] == game_info.terrain_height[b]
 
+    surrounding = find_surrounding(points, game_info.placement_grid.data_numpy, lambda x: x == 1)
+    points = frozenset(points)
+    surrounding = frozenset(surrounding)
+    vision_blockers = frozenset(p for p in game_info.vision_blockers if p in points)
+
+    test_point = next(iter(surrounding))
+    minerals = {m.tag for m in minerals if m.position.rounded in points}
+    destructables = {d.tag for d in destructables if d.position.rounded in points}
+
+    # check if the passage is a ramp
+    if any(not check_height(test_point, p) for p in surrounding):
+        return Ramp(game_info, points, surrounding, vision_blockers, minerals, destructables)
+
+    return ChokePoint(game_info, points, surrounding, vision_blockers, minerals, destructables)
 
 
 def find_passages(
-        pathing_grid: np.ndarray,
-        placement_grid: np.ndarray,
-        height_map: np.ndarray,
-        destructables: Units,
-        minerals: Units,
-        vision_blockers: Iterable[Point2],
+        game_info: GameInfo,
+        destructables: Iterable[Unit],
+        minerals: Iterable[Unit],
         threshold: int = 6
 ) -> list[Passage]:
     """
     Finds passages on the map as well as the surrounding tiles. Mostly for ramps and destructables.
 
     Args:
-        pathing_grid (np.ndarray): pathing grid
-        placement_grid (np.ndarray): placement grid
-        height_map (np.ndarray): height map
+        game_info (GameInfo): game info
         destructables (Units): destructables
         minerals (Units): minerals
-        vision_blockers (Iterable[Point2]): vision blockers
         threshold (int, optional): minimum number of tiles to be considered as passage, default 6
     """
-    grid = unbuildable_pathing_grid(pathing_grid, placement_grid, destructables, minerals, vision_blockers)
+    pathing_grid = game_info.pathing_grid.data_numpy.copy()
+    placement_grid = game_info.placement_grid.data_numpy.copy()
+    vision_blockers = game_info.vision_blockers
+
+    grid = unbuildable_pathing_grid(pathing_grid, placement_grid, destructables, minerals,
+                                    vision_blockers)
 
     # bfs the grid to find groups of unbuildable tiles
-    groups = []
-    for point in np.argwhere(grid == 1):
-        visited = numpy_bfs(grid, tuple(point))
+    groups = flood_fill_all(grid, lambda x: x == 1)
 
-        if len(visited) >= threshold:
-            surrounding = find_surrounding(visited, grid)
-            grouped = group_points(surrounding)
-
-            # check for ramps
-            if len(grouped) == 1:
-                continue
-
-            point = next(iter(grouped[0]))
-            is_ramp = any(height_map[nx, ny] != height_map[point] for points in grouped for nx, ny in points)
-
-
-
+    return [
+        passage_builder(game_info, group, destructables, minerals)
+        for group in groups
+        if len(group) >= threshold
+    ]

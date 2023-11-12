@@ -2,11 +2,13 @@ from collections import deque
 from typing import Iterable, Callable, TypeVar
 from itertools import chain
 
+
 import numpy as np
 
 from sc2.position import Point2
 from sc2.unit import Unit
 from sc2.units import Units
+from sc2.game_info import GameInfo
 
 from .destructables import (destructable_2x2, destructable_2x4,
                             destructable_2x6, destructable_4x2,
@@ -16,7 +18,6 @@ from .destructables import (destructable_2x2, destructable_2x4,
                             destructable_ULBR)
 
 T = TypeVar('T')
-Point = tuple[int, int]
 
 
 class FindUnion:
@@ -56,100 +57,70 @@ class FindUnion:
         return list(groups.values())
 
 
-def neighbor4(x: int, y: int) -> Iterable[Point]:
-    """
-    Returns the 4 neighbors of (x, y)
-
-    Args:
-        x (int): x coordinate
-        y (int): y coordinate
-
-    Returns:
-        Iterable[tuple[int, int]]: 4 neighbors of (x, y)
-    """
-    return (x, y - 1), (x - 1, y), (x + 1, y), (x, y + 1)
-
-
-def neighbor8(x: int, y: int) -> Iterable[Point]:
-    """
-    Returns the 8 neighbors of (x, y)
-
-    Args:
-        x (int): x coordinate
-        y (int): y coordinate
-
-    Returns:
-        Iterable[tuple[int, int]]: 8 neighbors of (x, y)
-    """
-    return ((x - 1, y - 1), (x, y - 1), (x + 1, y - 1),
-            (x - 1, y), (x + 1, y),
-            (x - 1, y + 1), (x, y + 1), (x + 1, y + 1))
-
-
-def numpy_bfs(grid: np.ndarray, point: Point, neighbor_func: Callable = neighbor8) -> set[Point]:
-    """
-    Performs a BFS on the grid starting at (x, y) and returns the visited points.
-
-    Warning: This function modifies the grid.
-
-    Args:
-        grid (np.ndarray): numpy grid
-        point (Point): starting point
-        neighbor_func (Callable, optional): function that returns the neighbors of a point, default neighbor8
-
-    Returns:
-        set[Point]: visited points
-    """
-    queue = deque([point])
-    visited = set()
-    rows, cols = grid.shape
-
-    assert 0 <= point[0] < rows and 0 <= point[1] < cols, f"Starting position ({point}) is out of bounds"
+def flood_fill(start: Point2, grid: np.ndarray, pred: Callable[[int], bool]) -> set[Point2]:
+    nodes: set[Point2] = set()
+    queue: deque[Point2] = deque([start])
+    width, height = grid.shape
 
     while queue:
-        x, y = queue.popleft()
-        grid[x, y] = 0
+        x, y = queue.pop()
 
-        for nx, ny in neighbor_func(x, y):
-            if 0 <= nx < rows and 0 <= ny < cols and grid[nx, ny] == 0:
-                queue.append((nx, ny))
-                visited.add((nx, ny))
+        if not (0 <= y < width and 0 <= x < height):
+            continue
 
-    return visited
+        if Point2((x, y)) in nodes:
+            continue
 
-
-def find_surrounding(group: set[Point], grid: np.ndarray, neighbor_func: Callable = neighbor8) -> set[Point]:
-    """
-    Finds the surrounding tiles of a group of points.
-
-    Args:
-        group (set[Point]): group of points
-        grid (np.ndarray): numpy grid
-        neighbor_func (Callable, optional): function that returns the neighbors of a point, default neighbor8
-
-    Returns:
-        set[Point]: surrounding tiles
-    """
-    return {(nx, ny) for point in group for nx, ny in neighbor_func(*point) if grid[nx, ny] == 1}
+        if pred(grid[y, x]):
+            nodes.add(Point2((x, y)))
+            queue.extend(Point2((x + a, y + b)) for a in [-1, 0, 1] for b in [-1, 0, 1] if not (a == 0 and b == 0))
+    return nodes
 
 
-def group_points(points: set[Point], neighbor_func: Callable = neighbor8) -> list[set[Point]]:
+def flood_fill_all(grid: np.ndarray, pred: Callable[[int], bool]) -> set[frozenset[Point2]]:
+    groups: set[frozenset[Point2]] = set()
+    width, height = grid.shape
+
+    for y in range(width):
+        for x in range(height):
+            if any((x, y) in g for g in groups):
+                continue
+
+            if pred(grid[y, x]):
+                groups.add(frozenset(flood_fill(Point2((x, y)), grid, pred)))
+
+    return groups
+
+
+def find_surrounding(group: Iterable[Point2], grid: np.ndarray, pred: Callable[[int], bool]) -> set[Point2]:
+    width, height = grid.shape
+    surrounding: set[Point2] = set()
+
+    for point in group:
+        for x, y in point.neighbors8:
+            if 0 <= y < width and 0 <= x < height and pred(grid[y, x]):
+                surrounding.add(Point2((x, y)))
+
+    surrounding.difference_update(group)
+    return surrounding
+
+
+def group_points(points: Iterable[Point2]) -> list[set[Point2]]:
     """
     Groups points together by finding the connected components of the graph.
 
     Args:
-        points (set[Point]): points to group
-        neighbor_func (Callable, optional): function that returns the neighbors of a point, default neighbor8
+        points (set[Point2]): points to group
 
     Returns:
-        list[set[Point]]: list of groups
+        list[set[Point2]]: list of groups
     """
     find_union = FindUnion(points)
 
     for point in points:
-        for nx, ny in neighbor_func(*point):
-            if (nx, ny) in points:
-                find_union.union(point, (nx, ny))
+        for p in point.neighbors8:
+            if p in points:
+                find_union.union(point, p)
 
     return find_union.groups()
 
@@ -157,8 +128,8 @@ def group_points(points: set[Point], neighbor_func: Callable = neighbor8) -> lis
 def unbuildable_pathing_grid(
     pathing_grid: np.ndarray,
     placement_grid: np.ndarray,
-    destructables: Units,
-    minerals: Units,
+    destructables: Iterable[Unit],
+    minerals: Iterable[Unit],
     vision_blockers: Iterable[Point2]
 ) -> np.ndarray:
     """
@@ -212,6 +183,7 @@ def change_destructable_status_in_grid(grid: np.ndarray, unit: Unit, status: int
     """
     type_id = unit.type_id
     pos = unit.position
+    pos = (pos.y, pos.x)
     name = unit.name
 
     # this is checked with name because the id of the small mineral destructables
