@@ -57,28 +57,61 @@ class FindUnion:
         return list(groups.values())
 
 
-def flood_fill(start: Point2, grid: np.ndarray, pred: Callable[[int], bool]) -> set[Point2]:
+def flood_fill_points(start: Point2, points: Iterable) -> list[Point2]:
+    """
+    Flood fill algorithm for finding all points connected to a starting point
+
+    Caution: This function is not optimized for speed
+
+    Args:
+        start (Point2): starting point
+        points (Iterable[Point2]): points to search
+
+    Returns:
+        list[Point2]: points connected to the starting point
+    """
+    nodes: list[Point2] = []
+    queue: deque[Point2] = deque([start])
+
+    while queue:
+        point = queue.pop()
+
+        if point in nodes:
+            continue
+
+        if point not in points:
+            continue
+
+        nodes.append(point)
+        x, y = point
+        queue.extend(Point2((x + a, y + b)) for a in [-1, 0, 1] for b in [-1, 0, 1] if not (a == 0 and b == 0))
+
+    return nodes
+
+
+def flood_fill(start: Point2, grid: np.ndarray, pred: Callable[[Point2], bool]) -> set[Point2]:
     nodes: set[Point2] = set()
     queue: deque[Point2] = deque([start])
     width, height = grid.shape
 
     while queue:
-        x, y = queue.pop()
+        point = queue.pop()
+        x, y = point
 
         if not (0 <= y < width and 0 <= x < height):
             continue
 
-        if Point2((x, y)) in nodes:
+        if point in nodes:
             continue
 
-        if pred(grid[y, x]):
-            nodes.add(Point2((x, y)))
+        if pred(point):
+            nodes.add(point)
             queue.extend(Point2((x + a, y + b)) for a in [-1, 0, 1] for b in [-1, 0, 1] if not (a == 0 and b == 0))
     return nodes
 
 
-def flood_fill_all(grid: np.ndarray, pred: Callable[[int], bool]) -> set[frozenset[Point2]]:
-    groups: set[frozenset[Point2]] = set()
+def flood_fill_all(grid: np.ndarray, pred: Callable[[Point2], bool]) -> list[set[Point2]]:
+    groups: list[set[Point2]] = []
     width, height = grid.shape
 
     for y in range(width):
@@ -86,8 +119,10 @@ def flood_fill_all(grid: np.ndarray, pred: Callable[[int], bool]) -> set[frozens
             if any((x, y) in g for g in groups):
                 continue
 
-            if pred(grid[y, x]):
-                groups.add(frozenset(flood_fill(Point2((x, y)), grid, pred)))
+            point = Point2((x, y))
+
+            if pred(point):
+                groups.append(flood_fill(point, grid, pred))
 
     return groups
 
