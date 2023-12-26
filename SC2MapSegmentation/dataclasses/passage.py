@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from sc2.client import Client
 from sc2.game_info import GameInfo
@@ -8,9 +9,9 @@ from sc2.position import Point2, Point3
 @dataclass(frozen=True)
 class Passage:
     game_info: GameInfo
-    vision_blockers: frozenset[Point2] | None
-    destructables: set[int] | None
-    minerals: set[int] | None
+    vision_blockers: Optional[frozenset[Point2]]
+    destructables: Optional[set[Point2]]
+    minerals: Optional[set[Point2]]
 
     titles: frozenset[Point2]
     surrounding: frozenset[Point2]
@@ -51,11 +52,11 @@ class Passage:
 
 @dataclass(frozen=True)
 class Ramp(Passage):
-    low_titles: tuple[Point2, ...]
-    high_titles: tuple[Point2, ...]
+    low_tiles: tuple[Point2, ...]
+    high_tiles: tuple[Point2, ...]
 
     def draw_surrounding(self, client: Client, height_offset: int = -0.1):
-        for point in self.low_titles:
+        for point in self.low_tiles:
             height = self._get_terrain_z_height(point)
             x = self.game_info.terrain_height[point]
 
@@ -63,7 +64,7 @@ class Ramp(Passage):
             point = Point3((point.x + 0.5, point.y + 0.5, height + height_offset))
             client.debug_box2_out(point, color=(255, 0, 0))
 
-        for point in self.high_titles:
+        for point in self.high_tiles:
             height = self._get_terrain_z_height(point)
             x = self.game_info.terrain_height[point]
 
