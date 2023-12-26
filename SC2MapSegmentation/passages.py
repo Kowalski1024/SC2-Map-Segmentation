@@ -1,4 +1,4 @@
-from typing import Iterable, Any, Mapping
+from typing import Iterable, Any, Mapping, Type, Union
 import random
 import numpy as np
 
@@ -11,7 +11,19 @@ from .utils import unbuildable_pathing_grid, flood_fill_all, find_surrounding, g
 import matplotlib.pyplot as plt
 
 
+GROUND_HEIGHT = (175, 191, 207)
+
+
 def create_edge(points: Iterable[Point2]) -> tuple[Point2, ...]:
+    """
+    Creates an edge of a passage, e.g. the low ground tiles of a ramp.
+
+    Args:
+        points (Iterable[Point2]): points to create the edge from
+
+    Returns:
+        tuple[Point2, ...]: edge points
+    """
     center = Point2.center(points)  # type: ignore
     furthest = max(points, key=lambda p: p.distance_to(center))
     return tuple(flood_fill_points(furthest, points))
@@ -23,6 +35,19 @@ def passage_info(
         destructables: Iterable[Unit],
         minerals: Iterable[Unit],
 ) -> Mapping[str, Any]:
+    """
+    Creates a dictionary with information about a passage.
+
+    Args:
+        game_info (GameInfo): game info
+        titles (Iterable[Point2]): tiles of the passage
+        destructables (Iterable[Unit]): destructables in the passage
+        minerals (Iterable[Unit]): minerals in the passage
+
+    Returns:
+        Mapping[str, Any]: passage information
+    """
+
     return {
         "game_info": game_info,
         "titles": frozenset(titles),
@@ -33,42 +58,51 @@ def passage_info(
     }
 
 
-def create_ramp(
+def create_passage(
+        passage_type: Type[Passage],
         game_info: GameInfo,
-        titles: Iterable[Point2],
+        tiles: Iterable[Point2],
         destructables: Iterable[Unit],
         minerals: Iterable[Unit]
-) -> Ramp:
-    info = passage_info(game_info, titles, destructables, minerals)
+) -> Passage:
+    """
+    Creates a passage.
 
-    groups = group_points(info["surrounding"])
+    Args:
+        passage_type (Type[Passage]): type of the passage
+        game_info (GameInfo): game info
+        tiles (Iterable[Point2]): tiles of the passage
+        destructables (Iterable[Unit]): destructables in the passage
+        minerals (Iterable[Unit]): minerals in the passage
 
-    if len(groups) != 2:
-        raise ValueError(f"Expected 2 groups, got {len(groups)}.")
+    Returns:
+        Passage: created passage
+    """
 
-    low_titles = create_edge(groups[0])
-    high_titles = create_edge(groups[1])
+    info = passage_info(game_info, tiles, destructables, minerals)
 
-    # make sure the high ground is actually higher than the low ground
-    low_center = Point2.center(low_titles).rounded  # type: ignore
-    high_center = Point2.center(high_titles).rounded  # type: ignore
-    if game_info.terrain_height[high_center] < game_info.terrain_height[low_center]:
-        high_titles, low_titles = low_titles, high_titles
+    if passage_type == Ramp:
+        groups = group_points(info["surrounding"])
 
-    return Ramp(
-        **info,
-        high_titles=high_titles,
-        low_titles=low_titles
-    )
+        if len(groups) != 2:
+            raise ValueError(f"Expected 2 groups, got {len(groups)}.")
 
+        low_tiles = create_edge(groups[0])
+        high_tiles = create_edge(groups[1])
 
-def create_choke_point(
-        game_info: GameInfo,
-        titles: Iterable[Point2],
-        destructables: Iterable[Unit],
-        minerals: Iterable[Unit]
-) -> ChokePoint:
-    return ChokePoint(**passage_info(game_info, titles, destructables, minerals))
+        # make sure the high ground is actually higher than the low ground
+        low_center = Point2.center(low_tiles).rounded  # type: ignore
+        high_center = Point2.center(high_tiles).rounded  # type: ignore
+        if game_info.terrain_height[high_center] < game_info.terrain_height[low_center]:
+            high_tiles, low_tiles = low_tiles, high_tiles
+
+        return Ramp(
+            **info,
+            high_tiles=high_tiles,
+            low_tiles=low_tiles
+        )
+    else:
+        return ChokePoint(**info)
 
 
 def find_passages(
@@ -78,46 +112,49 @@ def find_passages(
         threshold: int = 6
 ) -> list[Passage]:
     """
-    Finds passages on the map as well as the surrounding tiles. Mostly for ramps and destructables.
+    Finds all passages in the map.
 
     Args:
         game_info (GameInfo): game info
-        destructables (Units): destructables
-        minerals (Units): minerals
-        threshold (int, optional): minimum number of tiles to be considered as passage, default 6
+        destructables (Iterable[Unit]): destructables in the map
+        minerals (Iterable[Unit]): minerals in the map
+        threshold (int, optional): minimum size of passages. Defaults to 6.
+
+    Returns:
+        list[Passage]: found passages
     """
-    pathing_grid = game_info.pathing_grid.data_numpy.copy()
-    placement_grid = game_info.placement_grid.data_numpy.copy()
-    height_grid = game_info.terrain_height.data_numpy.copy()
+
+    pathing_grid = game_info.pathing_grid.data_numpy
+    placement_grid = game_info.placement_grid.data_numpy
+    height_grid = game_info.terrain_height.data_numpy
     vision_blockers = game_info.vision_blockers
 
     grid = unbuildable_pathing_grid(pathing_grid, placement_grid, destructables, minerals,
                                     vision_blockers)
 
     # find all ramps
-    ramp_titles = flood_fill_all(grid, lambda p: grid[p.y, p.x] == 1 and height_grid[p.y, p.x] not in (175, 191, 207))
-    ramp_titles = [titles for titles in ramp_titles if len(titles) >= threshold]
-    for titles in ramp_titles:
-        titles.update(find_surrounding(titles, grid, lambda x: x == 1))
+    ramp_tiles = flood_fill_all(grid, lambda p: grid[p.y, p.x] == 1 and height_grid[p.y, p.x] not in GROUND_HEIGHT)
+    ramp_tiles = [tiles for tiles in ramp_tiles if len(tiles) >= threshold]
+    for tiles in ramp_tiles:
+        tiles.update(find_surrounding(tiles, grid, lambda x: x == 1))
 
-    ramps: list[Passage] = [
-        create_ramp(game_info, titles, destructables, minerals)
-        for titles in ramp_titles
+    ramps = [
+        create_passage(Ramp, game_info, tiles, destructables, minerals)
+        for tiles in ramp_tiles
     ]
 
     # remove ramps from grid
     for ramp in ramps:
-        for title in ramp.titles:
-            grid[title.y, title.x] = 0
+        for tile in ramp.titles:
+            grid[tile.y, tile.x] = 0
 
     # find all chokes
-    choke_titles = flood_fill_all(grid, lambda p: grid[p.y, p.x] == 1 and height_grid[p.y, p.x] in (175, 191, 207))
+    choke_tiles = flood_fill_all(grid, lambda p: grid[p.y, p.x] == 1 and height_grid[p.y, p.x] in GROUND_HEIGHT)
 
-    chokes: list[Passage] = [
-        create_choke_point(game_info, titles, destructables, minerals)
-        for titles in choke_titles
-        if len(titles) >= threshold
+    chokes = [
+        create_passage(ChokePoint, game_info, tiles, destructables, minerals)
+        for tiles in choke_tiles
+        if len(tiles) >= threshold
     ]
 
     return ramps + chokes
-

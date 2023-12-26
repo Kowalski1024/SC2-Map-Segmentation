@@ -216,9 +216,9 @@ def change_destructable_status_in_grid(grid: np.ndarray, unit: Unit, status: int
     Returns:
         None
     """
+    grid = np.transpose(grid)
     type_id = unit.type_id
     pos = unit.position
-    pos = (pos.y, pos.x)
     name = unit.name
 
     # this is checked with name because the id of the small mineral destructables
@@ -310,3 +310,5 @@ def change_destructable_status_in_grid(grid: np.ndarray, unit: Unit, status: int
         grid[(x_ref + 0): (x_ref + 0 + 6), y_pos + 2] = status
         grid[(x_ref + 1): (x_ref + 1 + 4), y_pos + 3] = status
         grid[(x_ref + 2): (x_ref + 2 + 2), y_pos + 4] = status
+
+    
