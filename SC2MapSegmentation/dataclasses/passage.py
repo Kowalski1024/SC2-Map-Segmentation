@@ -5,6 +5,8 @@ from sc2.client import Client
 from sc2.game_info import GameInfo
 from sc2.position import Point2, Point3
 
+from SC2MapSegmentation.utils import group_points
+
 
 @dataclass(frozen=True)
 class Passage:
@@ -16,9 +18,8 @@ class Passage:
     titles: frozenset[Point2]
     surrounding: frozenset[Point2]
 
-    def ramp_center(self) -> Point2:
-        return Point2((sum(p.x for p in self.titles) / len(self.titles),
-                       sum(p.y for p in self.titles) / len(self.titles)))
+    def center(self) -> Point2:
+        return Point2.center(self.titles)
 
     def draw_boxes(self, client: Client, height_offset: int = -0.1):
         for point in self.titles:
@@ -30,7 +31,7 @@ class Passage:
 
         self.draw_surrounding(client, height_offset)
 
-        center = self.ramp_center()
+        center = self.center()
         center = Point3((center.x, center.y, self._get_terrain_z_height(center) + height_offset))
         client.debug_sphere_out(center, r=1, color=(255, 255, 255))
 
