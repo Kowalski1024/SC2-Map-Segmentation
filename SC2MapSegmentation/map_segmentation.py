@@ -4,44 +4,101 @@ from typing import Iterable, Sequence
 from itertools import chain, cycle
 
 import numpy as np
+from skimage.draw import line
+from skimage.morphology import flood_fill
+import matplotlib.pyplot as plt
 
 from sc2.position import Point2
 from sc2.unit import Unit
 from sc2.units import Units
 from sc2.game_info import GameInfo
 
-from .utils import group_points
+from .utils import group_points, change_destructable_status_in_grid
 from .dataclasses.passage import Passage, Ramp, ChokePoint
 from .passages import find_passages
 
 
-def map_segmentation(bot: BotAIInternal, rich: bool = True) -> Map:
+def map_segmentation(bot: BotAIInternal, rich: bool = True):
     placement_grid = bot.game_info.placement_grid.copy()
     pathing_grid = bot.game_info.pathing_grid.copy()
 
     passages = find_passages(bot.game_info, bot.destructables, bot.mineral_field)
+    region_locations = region_location_from_passages(passages)
+    region_locations.sort(
+        key=lambda location: location.distance_to(bot.game_info.map_center)
+    )
+    region_locations = bot.expansion_locations_list + region_locations
+
+    segmentation_grid = pathing_grid.data_numpy
+    segmentation_grid[placement_grid.data_numpy == 1] = 1
+
+    for unit in chain(bot.mineral_field, bot.destructables):
+        change_destructable_status_in_grid(segmentation_grid, unit, 0)
+
+    for vision_blocker in bot.game_info.vision_blockers:
+        x, y = vision_blocker.position.rounded
+        segmentation_grid[y, x] = 0
+
+    i = 0
+    for i, location in enumerate(region_locations):
+        x, y = location.rounded
+
+        if segmentation_grid[y, x] == 1:
+            create_region(location, i+3, segmentation_grid, bot.game_info)
+
+    segmentation_grid[segmentation_grid == 2] = 1
+
+    return region_locations
 
 
-def regions_grid() -> np.ndarray:
-    pass
+def create_region(location: Point2, index: int, grid: np.ndarray, game_info: GameInfo) -> np.ndarray:
+    def add_choke(point_a: Point2, point_b: Point2):
+        """Adds a choke line to the grid"""
+        rr, cc = line(point_a.y, point_a.x, point_b.y, point_b.x)
+        grid[rr, cc] = np.where(grid[rr, cc] == 1, 2, grid[rr, cc])
+
+    def find_chokes(points: list[Point2]) -> list[tuple[Point2, Point2]]:
+        """Finds the choke points in a list of points"""
+        return [
+            (point_a, point_b)
+            for point_a, point_b in zip(points, points[1:] + points[:1])
+            if point_a.manhattan_distance(point_b) > 2
+        ]
+        
+
+    depth_points_raw = depth_points(location, grid, game_info)
+    depth_points_list = filter_convex_hull_points(depth_points_raw, location)
+
+    for choke in find_chokes(depth_points_list):
+        add_choke(*choke)
+
+    location = location.rounded
+
+    region_points = flood_fill(
+        grid,
+        (location.y, location.x),
+        index,
+        connectivity=1,
+        in_place=True,
+    )
+
+    return region_points
 
 
-def create_region(location: Point2, grid: np.ndarray, game_info: GameInfo):
-    pass
-
-
-def region_location_from_passages(passages: Iterable[Passage], distance: int = 5) -> list[Point2]:
+def region_location_from_passages(
+    passages: Iterable[Passage], distance: float = 5
+) -> list[Point2]:
     """
     Returns a list of vectors that point from the center of the passages to the center of the surrounding tiles multiplied by the distance
 
     Args:
         passages (Iterable[Passage]): passages
-        distance (int, optional): distance to multiply the vectors with
+        distance (float, optional): distance to multiply the vectors with
 
     Returns:
         list[Point2]: list of vectors
     """
-    
+
     locations = []
 
     for passage in passages:
@@ -54,32 +111,34 @@ def region_location_from_passages(passages: Iterable[Passage], distance: int = 5
 
         for group in groups:
             group_center = Point2.center(group)
-
-            vector = group_center - center
-
-            locations.append(center + vector * distance)
+            vector = (group_center - center).normalized
+            locations.append(group_center + vector * distance)
 
     return locations
 
 
-def remove_non_convex_points(points: Sequence[Point2], location: Point2) -> list[Point2]:
+def remove_non_convex_points(
+    points: Sequence[Point2], location: Point2
+) -> list[Point2]:
     """
-    Removes points from a list where two points are too far from each other and the angle between them is obtuse
-    to form a convex hull-like shape around the location
-    
+    Removes points from a list where two points are too far from each other 
+    and the angle between them is obtuse to form a convex hull-like shape around the location
+
     Args:
         points (list[Point2]): list of points
         location (Point2): location
-        
+
     Returns:
         list[Point2]: list of points without non-convex points
     """
-    def is_obtuse_angle(point1: Point2, point2: Point2, point3: Point2) -> bool:
-        """Returns true if the angle between the three points is obtuse"""
-        a = point1.distance_to(point2)
-        b = point2.distance_to(point3)
-        c = point3.distance_to(point1)
-        return a**2 + b**2 < c**2
+
+    def angle_between_points(center: Point2, point1: Point2, point2: Point2) -> float:
+        """Returns the angle between two points"""
+        vector1 = tuple(point1 - center)
+        vector2 = tuple(point2 - center)
+        unit_vector1 = vector1 / np.linalg.norm(vector1)
+        unit_vector2 = vector2 / np.linalg.norm(vector2)
+        return np.arccos(np.clip(np.dot(unit_vector1, unit_vector2), -1.0, 1.0))
 
     n = len(points) - 1
 
@@ -90,17 +149,21 @@ def remove_non_convex_points(points: Sequence[Point2], location: Point2) -> list
         point1 = points[n]
         point2 = points[n - 1]
 
-        if point1.manhattan_distance(point2) > 2 and point1.distance_to(location) < point2.distance_to(location):
-            while is_obtuse_angle(location, point1, point2):
-                points.pop(n - 1)
-                n -= 1
-                point2 = points[n - 1]
+        if point1.manhattan_distance(point2) > 2:
+            if point1.distance_to(location) < point2.distance_to(location):
+                while angle_between_points(point1, location, point2) > np.pi * 0.6:
+                    points.pop(n - 1)
+                    n -= 1
+                    point2 = points[n - 1]
 
         n -= 1
 
     return points
 
-def filter_convex_hull_points(points: Sequence[Point2], location: Point2) -> list[Point2]:
+
+def filter_convex_hull_points(
+    points: Sequence[Point2], location: Point2
+) -> list[Point2]:
     """
     Filters points to form an convex hull-like shape around the location
 
@@ -118,7 +181,13 @@ def filter_convex_hull_points(points: Sequence[Point2], location: Point2) -> lis
     return points
 
 
-def depth_points(location: Point2, grid: np.ndarray, game_info: GameInfo, step: int = 1, max_distance: int = 30) -> list[Point2]:
+def depth_points(
+    location: Point2,
+    grid: np.ndarray,
+    game_info: GameInfo,
+    step: int = 1,
+    max_distance: int = 30,
+) -> list[Point2]:
     """
     Scans the map in a circle around the location and returns the first point that is not buildable
 
@@ -132,11 +201,13 @@ def depth_points(location: Point2, grid: np.ndarray, game_info: GameInfo, step: 
     Returns:
         list[Point2]: list of points that are not buildable
     """
+
     def rotation_matrix(degrees):
         """Returns a rotation matrix for counterclockwise direction in degrees"""
         theta = np.radians(degrees)
-        return np.array(((np.cos(theta), -np.sin(theta)),
-                        (np.sin(theta), np.cos(theta))))
+        return np.array(
+            ((np.cos(theta), -np.sin(theta)), (np.sin(theta), np.cos(theta)))
+        )
 
     # get the direction vector from the location to the map center
     ray = location.direction_vector(game_info.map_center).normalized
@@ -158,7 +229,9 @@ def depth_points(location: Point2, grid: np.ndarray, game_info: GameInfo, step: 
     return point_list
 
 
-def scan_direction(location: Point2, direction: np.ndarray, grid: np.ndarray, max_distance: int) -> tuple[Point2, int]:
+def scan_direction(
+    location: Point2, direction: np.ndarray, grid: np.ndarray, max_distance: int
+) -> tuple[Point2, int]:
     """
     Scans the map in a certain direction until it finds a non-buildable point
 
@@ -173,7 +246,9 @@ def scan_direction(location: Point2, direction: np.ndarray, grid: np.ndarray, ma
     """
 
     for distance in range(1, max_distance):
-        point = location + Point2((direction[0][0] * distance, direction[1][0] * distance))
+        point = location + Point2(
+            (direction[0][0] * distance, direction[1][0] * distance)
+        )
         point = point.rounded
 
         if grid[point.y, point.x] == 0:
