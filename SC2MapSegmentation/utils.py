@@ -98,15 +98,13 @@ def flood_fill(start: Point2, grid: np.ndarray, pred: Callable[[Point2], bool]) 
         point = queue.pop()
         x, y = point
 
-        if not (0 <= y < width and 0 <= x < height):
-            continue
-
-        if point in nodes:
+        if not (0 <= y < width and 0 <= x < height) or point in nodes:
             continue
 
         if pred(point):
             nodes.add(point)
             queue.extend(Point2((x + a, y + b)) for a in [-1, 0, 1] for b in [-1, 0, 1] if not (a == 0 and b == 0))
+
     return nodes
 
 
