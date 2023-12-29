@@ -13,7 +13,7 @@ from sc2.unit import Unit
 from sc2.units import Units
 from sc2.game_info import GameInfo
 
-from .utils import group_points, change_destructable_status_in_grid
+from .utils import group_points, change_destructable_status_in_grid, flood_fill_all, find_surrounding
 from .dataclasses.passage import Passage, Ramp, ChokePoint
 from .passages import find_passages
 
@@ -23,39 +23,67 @@ def map_segmentation(bot: BotAIInternal, rich: bool = True):
     pathing_grid = bot.game_info.pathing_grid.copy()
 
     passages = find_passages(bot.game_info, bot.destructables, bot.mineral_field)
-    region_locations = region_location_from_passages(passages)
-    region_locations.sort(
-        key=lambda location: location.distance_to(bot.game_info.map_center)
-    )
+    region_locations = sorted(region_location_from_passages(passages), 
+                              key=lambda location: location.distance_to(bot.game_info.map_center))
     region_locations = bot.expansion_locations_list + region_locations
 
-    segmentation_grid = pathing_grid.data_numpy
-    segmentation_grid[placement_grid.data_numpy == 1] = 1
+    segmentation_grid = placement_grid.data_numpy * -1
 
-    for unit in chain(bot.mineral_field, bot.destructables):
-        change_destructable_status_in_grid(segmentation_grid, unit, 0)
-
-    for vision_blocker in bot.game_info.vision_blockers:
-        x, y = vision_blocker.position.rounded
-        segmentation_grid[y, x] = 0
+    for passage in passages:
+        for point in passage.titles:
+            segmentation_grid[point.y, point.x] = 0
 
     i = 0
-    for i, location in enumerate(region_locations):
+    for location in region_locations:
         x, y = location.rounded
 
-        if segmentation_grid[y, x] == 1:
-            create_region(location, i+3, segmentation_grid, bot.game_info)
+        if segmentation_grid[y, x] == -1:
+            create_region(location, i+1, segmentation_grid, bot.game_info)
+            i += 1
 
-    segmentation_grid[segmentation_grid == 2] = 1
+    segmentation_grid[segmentation_grid == -2] = -1
+
+    clear_grid(segmentation_grid)
+
+    plt.imshow(segmentation_grid)
+    plt.show()
 
     return region_locations
+
+
+def clear_grid(grid: np.ndarray, min_size: int = 50):
+    max_value = np.max(grid)
+    region_size = np.bincount(grid[grid > 0].flatten())
+    unlabbeled_regions = flood_fill_all(grid, lambda point: grid[point.y, point.x] == -1)
+
+    for region in unlabbeled_regions:
+        if len(region) < min_size:
+            surrounding = find_surrounding(region, grid, lambda val: val > 0)
+            if not surrounding:
+                max_value += 1
+                for point in region:
+                    grid[point.y, point.x] = max_value
+                region_size = np.append(region_size, len(region))
+                continue
+            min_idx = min((grid[point.y, point.x] for point in surrounding), 
+                          key=lambda idx: region_size[idx])
+
+            for point in region:
+                grid[point.y, point.x] = min_idx
+            
+            region_size[min_idx] += len(region)
+        else:
+            max_value += 1
+            for point in region:
+                grid[point.y, point.x] = max_value
+            region_size = np.append(region_size, len(region))
 
 
 def create_region(location: Point2, index: int, grid: np.ndarray, game_info: GameInfo) -> np.ndarray:
     def add_choke(point_a: Point2, point_b: Point2):
         """Adds a choke line to the grid"""
         rr, cc = line(point_a.y, point_a.x, point_b.y, point_b.x)
-        grid[rr, cc] = np.where(grid[rr, cc] == 1, 2, grid[rr, cc])
+        grid[rr, cc] = np.where(grid[rr, cc] == -1, -2, grid[rr, cc])
 
     def find_chokes(points: list[Point2]) -> list[tuple[Point2, Point2]]:
         """Finds the choke points in a list of points"""
