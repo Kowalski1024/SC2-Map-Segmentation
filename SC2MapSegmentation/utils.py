@@ -125,12 +125,17 @@ def flood_fill_all(grid: np.ndarray, pred: Callable[[Point2], bool]) -> list[set
     return groups
 
 
-def find_surrounding(group: Iterable[Point2], grid: np.ndarray, pred: Callable[[int], bool]) -> set[Point2]:
+def find_surrounding(group: Iterable[Point2], grid: np.ndarray, pred: Callable[[int], bool], neighbors4=False) -> set[Point2]:
     width, height = grid.shape
     surrounding: set[Point2] = set()
 
     for point in group:
-        for x, y in point.neighbors8:
+        if neighbors4:
+            neighbors = point.neighbors4
+        else:
+            neighbors = point.neighbors8
+            
+        for x, y in neighbors:
             if 0 <= y < width and 0 <= x < height and pred(grid[y, x]):
                 surrounding.add(Point2((x, y)))
 
@@ -138,7 +143,7 @@ def find_surrounding(group: Iterable[Point2], grid: np.ndarray, pred: Callable[[
     return surrounding
 
 
-def group_points(points: Iterable[Point2]) -> list[set[Point2]]:
+def group_points(points: Iterable[Point2], neighbors4=False) -> list[set[Point2]]:
     """
     Groups points together by finding the connected components of the graph.
 
@@ -151,7 +156,12 @@ def group_points(points: Iterable[Point2]) -> list[set[Point2]]:
     find_union = FindUnion(points)
 
     for point in points:
-        for p in point.neighbors8:
+        if neighbors4:
+            neighbors = point.neighbors4
+        else:
+            neighbors = point.neighbors8
+
+        for p in neighbors:
             if p in points:
                 find_union.union(point, p)
 
