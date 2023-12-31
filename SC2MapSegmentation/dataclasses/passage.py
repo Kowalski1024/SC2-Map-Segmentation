@@ -19,7 +19,11 @@ class Passage:
     surrounding: frozenset[Point2]
 
     def center(self) -> Point2:
-        return Point2.center(self.titles)
+        if self.titles:
+            return Point2.center(self.titles)
+        else:
+            return Point2.center(self.surrounding)
+
 
     def draw_boxes(self, client: Client, height_offset: int = -0.1):
         for point in self.titles:
