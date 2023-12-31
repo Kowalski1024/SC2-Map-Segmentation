@@ -109,7 +109,7 @@ def find_passages(
         game_info: GameInfo,
         destructables: Iterable[Unit],
         minerals: Iterable[Unit],
-        threshold: int = 6
+        threshold: int = 4
 ) -> list[Passage]:
     """
     Finds all passages in the map.
@@ -118,7 +118,7 @@ def find_passages(
         game_info (GameInfo): game info
         destructables (Iterable[Unit]): destructables in the map
         minerals (Iterable[Unit]): minerals in the map
-        threshold (int, optional): minimum size of passages. Defaults to 6.
+        threshold (int, optional): minimum size of passages
 
     Returns:
         list[Passage]: found passages
