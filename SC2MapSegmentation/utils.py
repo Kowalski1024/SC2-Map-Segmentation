@@ -10,7 +10,7 @@ from sc2.unit import Unit
 from sc2.units import Units
 from sc2.game_info import GameInfo
 
-from .destructables import (destructable_2x2, destructable_2x4,
+from .utils.destructables import (destructable_2x2, destructable_2x4,
                             destructable_2x6, destructable_4x2,
                             destructable_4x4, destructable_4x12,
                             destructable_6x2, destructable_6x6,

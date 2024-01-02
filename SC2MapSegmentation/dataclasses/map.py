@@ -10,7 +10,7 @@ from .passage import Passage
 
 
 @dataclass(frozen=True)
-class Map:
+class SegmentedMap:
     name: str
     regions_grid: np.ndarray
     regions: dict[int, Region]
@@ -18,3 +18,7 @@ class Map:
     base_locations: tuple[Point2, ...]
 
     game_info: GameInfo
+
+    def region_at(self, point: Point2) -> Region:
+        point = point.rounded
+        return self.regions[self.regions_grid[point.y, point.x]]

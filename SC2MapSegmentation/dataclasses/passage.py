@@ -52,6 +52,9 @@ class Passage:
     def _get_terrain_z_height(self, pos: Point2) -> float:
         pos = pos.rounded
         return -16 + 32 * self.game_info.terrain_height[pos] / 255
+    
+    def __hash__(self):
+        return hash(self.titles)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(points_len={len(self.titles)}, surrounding_len={len(self.surrounding)}, destructables={self.destructables}, minerals={self.minerals}), vision_blockers={self.vision_blockers})"
@@ -62,22 +65,22 @@ class Ramp(Passage):
     low_tiles: tuple[Point2, ...] = field(default_factory=tuple)
     high_tiles: tuple[Point2, ...] = field(default_factory=tuple)
 
-    def draw_surrounding(self, client: Client, height_offset: int = -0.1):
-        for point in self.low_tiles:
-            height = self._get_terrain_z_height(point)
-            x = self.game_info.terrain_height[point]
+    # def draw_surrounding(self, client: Client, height_offset: int = -0.1):
+    #     for point in self.low_tiles:
+    #         height = self._get_terrain_z_height(point)
+    #         x = self.game_info.terrain_height[point]
 
-            client.debug_text_world(f"{x:.2f}", Point3((point.x + 0.5, point.y + 0.5, height)), size=10)
-            point = Point3((point.x + 0.5, point.y + 0.5, height + height_offset))
-            client.debug_box2_out(point, color=(255, 0, 0))
+    #         client.debug_text_world(f"{x:.2f}", Point3((point.x + 0.5, point.y + 0.5, height)), size=10)
+    #         point = Point3((point.x + 0.5, point.y + 0.5, height + height_offset))
+    #         client.debug_box2_out(point, color=(255, 0, 0))
 
-        for point in self.high_tiles:
-            height = self._get_terrain_z_height(point)
-            x = self.game_info.terrain_height[point]
+    #     for point in self.high_tiles:
+    #         height = self._get_terrain_z_height(point)
+    #         x = self.game_info.terrain_height[point]
 
-            client.debug_text_world(f"{x:.2f}", Point3((point.x + 0.5, point.y + 0.5, height)), size=10)
-            point = Point3((point.x + 0.5, point.y + 0.5, height + height_offset))
-            client.debug_box2_out(point, color=(0, 0, 255))
+    #         client.debug_text_world(f"{x:.2f}", Point3((point.x + 0.5, point.y + 0.5, height)), size=10)
+    #         point = Point3((point.x + 0.5, point.y + 0.5, height + height_offset))
+    #         client.debug_box2_out(point, color=(0, 0, 255))
 
     def __repr__(self):
         return f"{self.__class__.__name__}(points_len={len(self.titles)}, surrounding_len={len(self.surrounding)}, destructables={self.destructables}, minerals={self.minerals}), vision_blockers={self.vision_blockers})"

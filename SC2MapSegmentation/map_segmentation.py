@@ -1,4 +1,4 @@
-from .dataclasses.map import Map
+from .dataclasses.map import SegmentedMap
 from sc2.bot_ai_internal import BotAIInternal
 from typing import Iterable, Sequence
 from collections import Counter, defaultdict
@@ -15,14 +15,14 @@ from sc2.game_info import GameInfo
 from .utils import group_points, flood_fill_all, find_surrounding
 from .dataclasses.passage import Passage
 from .dataclasses.region import Region
-from .dataclasses.map import Map
+from .dataclasses.map import SegmentedMap
 from .passages import find_passages, find_region_passages, clean_and_update
 
 
 EMPTY_REGION_INDEX = 0
 
 
-def map_segmentation(bot: BotAIInternal, rich: bool = True) -> Map:
+def map_segmentation(bot: BotAIInternal, rich: bool = True) -> SegmentedMap:
     placement_grid = bot.game_info.placement_grid.copy()
     pathing_grid = bot.game_info.pathing_grid.copy()
 
@@ -54,7 +54,7 @@ def map_segmentation(bot: BotAIInternal, rich: bool = True) -> Map:
 
     regions = create_regions(bot, segmentation_grid, passages)
 
-    segmented_map = Map(
+    segmented_map = SegmentedMap(
         name=bot.game_info.map_name,
         regions_grid=segmentation_grid,
         regions=regions,

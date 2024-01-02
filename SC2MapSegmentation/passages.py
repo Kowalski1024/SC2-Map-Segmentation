@@ -146,7 +146,10 @@ def clean_and_update(passages: Iterable[Passage], grid: np.ndarray):
 
         connections = defaultdict(list)
         for point in passage.surrounding:
-            connections[grid[point.y, point.x]].append(point)
+            val = grid[point.y, point.x]
+            if val == 0:
+                continue
+            connections[val].append(point)
 
         if len(connections) == 1:
             continue
