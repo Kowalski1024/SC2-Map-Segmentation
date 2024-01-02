@@ -1,4 +1,4 @@
-from typing import Hashable, Iterable, TypeVar, NamedTuple
+from typing import Hashable, Iterable, NamedTuple, TypeVar
 
 T = TypeVar("T", bound=Hashable)
 
@@ -23,10 +23,10 @@ class FindUnion:
     def find(self, item: T) -> T:
         """
         Finds the parent of an item
-        
+
         Args:
             item (T): item to find the parent of
-            
+
         Returns:
             T: parent of the item
         """

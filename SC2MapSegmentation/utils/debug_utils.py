@@ -1,9 +1,8 @@
-from sc2.position import Point2, Point3
-from sc2.game_info import GameInfo
 from sc2.client import Client
+from sc2.game_info import GameInfo
+from sc2.position import Point2, Point3
 
 from .misc_utils import get_terrain_z_height
-
 
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
@@ -11,10 +10,17 @@ BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
 
 
-def draw_point(game_info: GameInfo, client: Client, point: Point2, height_offset: int, color: tuple[int, int, int] = WHITE, text: str = ""):
+def draw_point(
+    game_info: GameInfo,
+    client: Client,
+    point: Point2,
+    height_offset: int,
+    color: tuple[int, int, int] = WHITE,
+    text: str = "",
+):
     """
     Draws a point on the map
-    
+
     Args:
         game_info (GameInfo): The game info of the map
         client (Client): The client to draw the point with

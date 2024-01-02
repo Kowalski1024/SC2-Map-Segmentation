@@ -1,14 +1,14 @@
-from typing import Union, Iterable
 from itertools import chain
+from typing import Iterable
 
 import numpy as np
 
+from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.unit import Unit
-from sc2.game_info import GameInfo
 
-from .destructables import change_destructable_status_in_grid
 from .data_structures import Point
+from .destructables import change_destructable_status_in_grid
 
 GROUND_HEIGHT = (175, 191, 207)
 FOUR_DIRECTIONS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -18,11 +18,11 @@ EIGHT_DIRECTIONS = FOUR_DIRECTIONS + [(1, 1), (1, -1), (-1, 1), (-1, -1)]
 def get_terrain_z_height(game_info: GameInfo, posistion: Point2) -> float:
     """
     Returns the terrain z height of a position
-    
+
     Args:
         game_info (GameInfo): The game info of the map
         posistion (Point2): The position to get the terrain z height of
-        
+
     Returns:
         float: The terrain z height of the position
     """
@@ -32,11 +32,11 @@ def get_terrain_z_height(game_info: GameInfo, posistion: Point2) -> float:
 def valid_point(grid: np.ndarray, point: Point2) -> bool:
     """
     Returns whether a point is valid
-    
+
     Args:
         grid (np.ndarray): The grid to check the point against
         point (Point2): The point to check
-        
+
     Returns:
         bool: Whether the point is valid
     """
@@ -76,7 +76,7 @@ def mark_unbuildable_tiles(
     placement_grid: np.ndarray,
     destructables: Iterable[Unit],
     minerals: Iterable[Unit],
-    vision_blockers: Iterable[Point2]
+    vision_blockers: Iterable[Point2],
 ) -> np.ndarray:
     """
     Creates a grid based on the pathing grid with unbuildable tiles marked as 1 and buildable tiles marked as 0.
@@ -103,7 +103,7 @@ def mark_unbuildable_tiles(
         change_destructable_status_in_grid(placement_grid, unit, 0)
 
     # Add vision blockers to pathing grid
-    for (x, y) in vision_blockers:
+    for x, y in vision_blockers:
         pathing_grid[x, y] = 1
 
     # Remove placement grid from pathing grid

@@ -1,6 +1,6 @@
 from collections import deque
-from typing import Callable, Iterable, Sequence
 from itertools import cycle
+from typing import Callable, Iterable, Sequence
 
 import numpy as np
 
@@ -112,7 +112,8 @@ def find_surrounding(
 
 
 def group_connected_points(
-    points: Iterable[Point], get_neighbors: Callable[[Point], list[Point]] = get_neighbors8
+    points: Iterable[Point],
+    get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
 ) -> list[set[Point]]:
     """
     Groups points together by finding the connected components of the graph.
@@ -157,8 +158,10 @@ def filter_obtuse_points(
         unit_vector1 = vector1 / np.linalg.norm(vector1)
         unit_vector2 = vector2 / np.linalg.norm(vector2)
         return np.arccos(np.clip(np.dot(unit_vector1, unit_vector2), -1.0, 1.0))
-    
-    def filter_points(points: Iterable[Point2], location: Point2, angle: float) -> list[Point2]:
+
+    def filter_points(
+        points: Iterable[Point2], location: Point2, angle: float
+    ) -> list[Point2]:
         """Filters points to form an convex hull-like shape around the location"""
         new_points = []
         points_iter = cycle(points)
@@ -170,7 +173,9 @@ def filter_obtuse_points(
 
             # if the distance between two points is too far and the angle between them is obtuse
             # then skip the second point till the angle between them is desired
-            if point1.manhattan_distance(point2) > 2 and point1.distance_to(location) < point2.distance_to(location):
+            if point1.manhattan_distance(point2) > 2 and point1.distance_to(
+                location
+            ) < point2.distance_to(location):
                 while angle_between_points(point1, location, point2) > angle:
                     point2 = next(points_iter)
 
@@ -183,12 +188,12 @@ def filter_obtuse_points(
                 break
 
         return new_points
-    
+
     def list_intersection(list_a: list[Point2], list_b: list[Point2]) -> list[Point2]:
         """Returns the intersection of two lists"""
         list_set = set(list_b)
         return [value for value in list_a if value in list_set]
-    
+
     list_a = filter_points(reversed(points), location, angle)
     list_b = filter_points(points, location, angle)
     return list_intersection(list_a, list_b)
@@ -231,13 +236,11 @@ def scan_unbuildable_points(
     # scan in a circle around the location
     for degree in range(0, 360, step):
         rotated_ray = np.matmul(rotation_matrix(degree), ray)
-        point, _ = scan_unbuildable_direction(
-            location, rotated_ray, grid, max_distance
-        )
+        point, _ = scan_unbuildable_direction(location, rotated_ray, grid, max_distance)
 
         if point is not None:
             point_list[point] = None
-    
+
     return list(point_list.keys())
 
 
