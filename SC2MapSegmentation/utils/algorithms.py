@@ -6,15 +6,12 @@ import numpy as np
 
 from sc2.position import Point2
 
-from .data_structures import FindUnion
-from .utils import get_neighbors8
-
-Point = tuple[int, int]
+from .data_structures import FindUnion, Point
+from .misc_utils import get_neighbors8
 
 
-def find_accessible_areas(
+def flood_fill(
     start: Point,
-    grid: np.ndarray,
     is_accessible: Callable[[Point], bool],
     get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
 ) -> set[Point]:
@@ -23,7 +20,6 @@ def find_accessible_areas(
 
     Args:
         start (Point): The point to start the search at
-        grid (np.ndarray): The grid to search
         is_accessible (Callable[[Point], bool]): The function to determine if a point is accessible
         get_neighbors (Callable[[Point], list[Point]], optional): The function to get the neighbors of a point
 
@@ -32,16 +28,14 @@ def find_accessible_areas(
     """
     seen: set[Point] = set()
     queue: deque[Point] = deque([start])
-    width, height = grid.shape
 
     while queue:
         point = queue.pop()
-        x, y = point
 
         if point in seen:
             continue
 
-        if not (0 <= x < width and 0 <= y < height and is_accessible((x, y))):
+        if not is_accessible(point):
             continue
 
         seen.add(point)
@@ -50,8 +44,8 @@ def find_accessible_areas(
     return seen
 
 
-def find_all_accessible_areas(
-    grid: np.ndarray,
+def flood_fill_all(
+    grid_shape: tuple[int, int],
     is_accessible: Callable[[Point], bool],
     get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
 ) -> list[set[Point]]:
@@ -59,7 +53,7 @@ def find_all_accessible_areas(
     Finds all accessible areas in a grid
 
     Args:
-        grid (np.ndarray): The grid to search
+        grid_shape (tuple[int, int]): The shape of the grid
         is_accessible (Callable[[Point], bool]): The function to determine if a point is accessible
         get_neighbors (Callable[[Point], list[Point]], optional): The function to get the neighbors of a point
 
@@ -68,25 +62,24 @@ def find_all_accessible_areas(
     """
     groups: list[set[Point]] = []
     seen: set[Point] = set()
-    width, height = grid.shape
+    width, height = grid_shape
 
     for x in range(width):
         for y in range(height):
-            point = (x, y)
+            point = Point(x, y)
 
             if point in seen or not is_accessible(point):
                 continue
 
-            group = find_accessible_areas(point, grid, is_accessible, get_neighbors)
+            group = flood_fill(point, is_accessible, get_neighbors)
             groups.append(group)
             seen.update(group)
 
     return groups
 
 
-def find_accessible_surrounding(
+def find_surrounding(
     group: Iterable[Point],
-    grid: np.ndarray,
     is_accessible: Callable[[Point], bool],
     get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
 ) -> set[Point]:
@@ -102,25 +95,24 @@ def find_accessible_surrounding(
     Returns:
         set[Point]: The accessible surrounding of the group
     """
-    width, height = grid.shape
     surrounding: set[Point] = set()
     group_set: set[Point] = set(group)
 
-    for point in group:
-        for x, y in get_neighbors(point):
-            if (x, y) in group_set:
+    for current in group:
+        for point in get_neighbors(current):
+            if point in group_set:
                 continue
 
-            if not (0 <= x < width and 0 <= y < height and is_accessible((x, y))):
+            if not is_accessible(point):
                 continue
 
-            surrounding.add((x, y))
+            surrounding.add(point)
 
     return surrounding
 
 
 def group_connected_points(
-    points: Iterable[Point], get_neighbors: Callable[[Point], list[Point]]
+    points: Iterable[Point], get_neighbors: Callable[[Point], list[Point]] = get_neighbors8
 ) -> list[set[Point]]:
     """
     Groups points together by finding the connected components of the graph.
