@@ -1,6 +1,8 @@
 from typing import Iterable, Any, Mapping, Type, Union
 import random
 import numpy as np
+from collections import Counter, defaultdict
+from itertools import chain
 
 from sc2.game_info import GameInfo
 from sc2.position import Point2
@@ -103,6 +105,57 @@ def create_passage(
         )
     else:
         return ChokePoint(**info)
+    
+
+def find_region_passages(
+        game_info: GameInfo,
+        region_grid: np.ndarray,
+) -> list[Passage]:
+    passages = []
+    connections_set = set()
+    max_value = np.max(region_grid)
+
+    for val in range(1, max_value + 1):
+        indices = np.where(region_grid == val)
+        region = [Point2((x, y)) for x, y in zip(indices[1], indices[0])]
+
+        surrounding = find_surrounding(region, region_grid, lambda val: val > 0, neighbors4=True)
+        connections_set.update(surrounding)
+
+    for group in group_points(connections_set, True):
+        tiles_per_region = Counter((region_grid[p.y, p.x] for p in group))
+        if len(tiles_per_region) > 1:
+            passages.append(Passage(
+                game_info=game_info,
+                vision_blockers=None,
+                destructables=None,
+                minerals=None,
+                titles=frozenset(),
+                surrounding=frozenset(group),
+            ))
+
+    return passages
+
+
+def clean_and_update(passages: Iterable[Passage], grid: np.ndarray):
+    results = []
+
+    for passage in passages:
+        if len(passage.surrounding) == 0:
+            continue
+
+        connections = defaultdict(list)
+        for point in passage.surrounding:
+            connections[grid[point.y, point.x]].append(point)
+
+        if len(connections) == 1:
+            continue
+
+        connections = {key: tuple(value) for key, value in connections.items()}
+        passage.connections.update(connections)
+        results.append(passage)
+
+    return results
 
 
 def find_passages(
