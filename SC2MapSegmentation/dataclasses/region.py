@@ -1,3 +1,4 @@
+from typing import Optional
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 import numpy as np
@@ -10,14 +11,13 @@ from .passage import Passage
 
 @dataclass(frozen=True)
 class Region:
+    index: int
     indices: tuple[np.ndarray, np.ndarray]
-    passages: list[Passage]
+    passages: tuple[Passage]
     game_info: GameInfo
-
-    # base information
-    base_location: Point2
-
-    watch_towers: tuple[Point2, ...]
+    base_location: Optional[Point2] = None
+    watch_towers: Optional[tuple[Point2, ...]] = None
+    vision_blockers: Optional[tuple[Point2, ...]] = None
 
     @cached_property
     def tiles(self) -> frozenset[Point2]:
