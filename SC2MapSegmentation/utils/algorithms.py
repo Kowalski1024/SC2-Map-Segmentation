@@ -171,19 +171,23 @@ def filter_obtuse_points(
         new_points = []
         points_iter = cycle(points)
         point1 = next(points_iter)
+        full_circle = False
 
         for point2 in points_iter:
+            new_points.append(point1)
+
             # if the distance between two points is too far and the angle between them is obtuse
             # then skip the second point till the angle between them is desired
-            if point1.manhattan_distance(point2) > 2:
-                if point1.distance_to(location) < point2.distance_to(location):
-                    while angle_between_points(point1, location, point2) > angle:
-                        point2 = next(points_iter)
+            if point1.manhattan_distance(point2) > 2 and point1.distance_to(location) < point2.distance_to(location):
+                while angle_between_points(point1, location, point2) > angle:
+                    point2 = next(points_iter)
 
-            new_points.append(point1)
+                    if point2 == new_points[0]:
+                        full_circle = True
+
             point1 = point2
 
-            if point1 == new_points[0]:
+            if full_circle or point1 == new_points[0]:
                 break
 
         return new_points
@@ -241,7 +245,7 @@ def scan_unbuildable_points(
 
         if point is not None:
             point_list[point] = None
-
+    
     return list(point_list.keys())
 
 
@@ -262,11 +266,13 @@ def scan_unbuildable_direction(
     """
 
     for distance in range(1, max_distance):
+        # get the point at the distance
         point = location + Point2(
             (direction[0][0] * distance, direction[1][0] * distance)
         )
         point = point.rounded
 
+        # if the point is not buildable then return it
         if grid[point.x, point.y] == 0:
             return point, distance
 
