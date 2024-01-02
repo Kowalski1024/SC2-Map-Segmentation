@@ -1,7 +1,7 @@
 from .dataclasses.map import Map
 from sc2.bot_ai_internal import BotAIInternal
 from typing import Iterable, Sequence
-from collections import Counter
+from collections import Counter, defaultdict
 
 import numpy as np
 from skimage.draw import line
@@ -13,11 +13,16 @@ from sc2.position import Point2
 from sc2.game_info import GameInfo
 
 from .utils import group_points, flood_fill_all, find_surrounding
-from .dataclasses.passage import Passage, Ramp
-from .passages import find_passages
+from .dataclasses.passage import Passage
+from .dataclasses.region import Region
+from .dataclasses.map import Map
+from .passages import find_passages, find_region_passages, clean_and_update
 
 
-def map_segmentation(bot: BotAIInternal, rich: bool = True):
+EMPTY_REGION_INDEX = 0
+
+
+def map_segmentation(bot: BotAIInternal, rich: bool = True) -> Map:
     placement_grid = bot.game_info.placement_grid.copy()
     pathing_grid = bot.game_info.pathing_grid.copy()
 
@@ -42,15 +47,92 @@ def map_segmentation(bot: BotAIInternal, rich: bool = True):
 
     segmentation_grid[segmentation_grid == -2] = -1
 
-    passages += clear_grid(segmentation_grid, bot.game_info)
+    clear_grid(segmentation_grid)
 
-    plt.imshow(segmentation_grid)
-    plt.show()
+    passages += find_region_passages(bot.game_info, segmentation_grid)
+    passages = clean_and_update(passages, segmentation_grid)
 
-    return region_locations, passages
+    regions = create_regions(bot, segmentation_grid, passages)
+
+    segmented_map = Map(
+        name=bot.game_info.map_name,
+        regions_grid=segmentation_grid,
+        regions=regions,
+        passages=tuple(passages),
+        base_locations=tuple(bot.expansion_locations_list),
+        game_info=bot.game_info,
+    )
+
+    return segmented_map
 
 
-def clear_grid(grid: np.ndarray, game_info: GameInfo, min_size: int = 50):
+def create_regions(bot: BotAIInternal, segmented_grid: np.ndarray, passages: list[Passage]) -> dict[int, Region]:
+    """
+    Creates regions from a segmented grid
+
+    Args:
+        bot (BotAIInternal): bot
+        segmented_grid (np.ndarray): segmented grid
+        passages (list[Passage]): passages
+
+    Returns:
+        dict[int, Region]: regions
+    """
+    regions = {}
+
+    watchtowers = [unit.position for unit in bot.watchtowers]
+    bases = get_indexed_locations(bot.expansion_locations_list, segmented_grid, "Base location")
+    watch_towers_dict = get_indexed_locations(watchtowers, segmented_grid, "Watch tower")
+    vision_blockers_dict = get_indexed_locations(bot.game_info.vision_blockers, segmented_grid, "Vision blocker")
+
+    for region_index in np.unique(segmented_grid):
+        if region_index == EMPTY_REGION_INDEX:
+            continue
+
+        base = bases[region_index][0] if region_index in bases else None
+        region_watch_towers = tuple(watch_towers_dict[region_index]) if region_index in watch_towers_dict else None
+        region_vision_blockers = tuple(vision_blockers_dict[region_index]) if region_index in vision_blockers_dict else None
+
+        indices = np.where(segmented_grid == region_index)
+        region_passages = [passage for passage in passages if region_index in passage.connections]
+        region = Region(
+            index=region_index,
+            indices=indices,
+            passages=tuple(region_passages),
+            base_location=base,
+            watch_towers=region_watch_towers,
+            vision_blockers=region_vision_blockers,
+            game_info=bot.game_info,
+        )
+        regions[region_index] = region
+
+    return regions
+
+
+def get_indexed_locations(locations: list[Point2], segmented_grid: np.ndarray, location_type: str) -> dict[int, list[Point2]]:
+    """
+    Indexes locations by the region they are in
+
+    Args:
+        locations (list[Point2]): locations
+        segmented_grid (np.ndarray): segmented grid
+        location_type (str): type of location
+
+    Returns:
+        dict[int, list[Point2]]: indexed locations
+    """
+    indexed_locations = defaultdict(list)
+
+    for location in locations:
+        x, y = location.rounded
+        location_index = segmented_grid[y, x]
+
+        indexed_locations[location_index].append(location)
+
+    return indexed_locations
+
+
+def clear_grid(grid: np.ndarray, min_size: int = 50):
     max_value = np.max(grid)
     unlabbeled_regions = flood_fill_all(grid, lambda point: grid[point.y, point.x] == -1)
 
@@ -74,29 +156,9 @@ def clear_grid(grid: np.ndarray, game_info: GameInfo, min_size: int = 50):
             for point in region:
                 grid[point.y, point.x] = 0
 
-    passages = []
-    connections_set = set()
-
-    for val in range(1, max_value + 1):
-        indices = np.where(grid == val)
-        region = [Point2((x, y)) for x, y in zip(indices[1], indices[0])]
-
-        surrounding = find_surrounding(region, grid, lambda val: val > 0, neighbors4=True)
-        connections_set.update(surrounding)
-
-    for group in group_points(connections_set, True):
-        tiles_per_region = Counter((grid[p.y, p.x] for p in group))
-        if len(tiles_per_region) > 1:
-            passages.append(Passage(
-                game_info=game_info,
-                vision_blockers=None,
-                destructables=None,
-                minerals=None,
-                titles=frozenset(),
-                surrounding=frozenset(group),
-            ))
-
-    return passages
+    values = np.unique(grid)
+    for i, value in enumerate(values):
+        grid[grid == value] = i
 
 
 def create_region(location: Point2, index: int, grid: np.ndarray, game_info: GameInfo, max_depth: int = 25):
