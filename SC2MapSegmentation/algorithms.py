@@ -3,11 +3,12 @@ from itertools import cycle
 from typing import Callable, Iterable, Sequence
 
 import numpy as np
+from loguru import logger
 
 from sc2.position import Point2
 
-from .data_structures import FindUnion, Point
-from .misc_utils import get_neighbors8
+from .utils.data_structures import FindUnion, Point
+from .utils.misc_utils import get_neighbors8
 
 
 def flood_fill(
@@ -163,13 +164,13 @@ def filter_obtuse_points(
         points: Iterable[Point2], location: Point2, angle: float
     ) -> list[Point2]:
         """Filters points to form an convex hull-like shape around the location"""
-        new_points = []
+        new_points = {}
         points_iter = cycle(points)
         point1 = next(points_iter)
         full_circle = False
 
         for point2 in points_iter:
-            new_points.append(point1)
+            new_points[point1] = None
 
             # if the distance between two points is too far and the angle between them is obtuse
             # then skip the second point till the angle between them is desired
@@ -179,15 +180,15 @@ def filter_obtuse_points(
                 while angle_between_points(point1, location, point2) > angle:
                     point2 = next(points_iter)
 
-                    if point2 == new_points[0]:
+                    if point2 in new_points:
                         full_circle = True
 
             point1 = point2
 
-            if full_circle or point1 == new_points[0]:
+            if full_circle or point1 in new_points:
                 break
 
-        return new_points
+        return list(new_points.keys())
 
     def list_intersection(list_a: list[Point2], list_b: list[Point2]) -> list[Point2]:
         """Returns the intersection of two lists"""
@@ -268,7 +269,7 @@ def scan_unbuildable_direction(
         point = point.rounded
 
         # if the point is not buildable then return it
-        if grid[point.x, point.y] == 0:
+        if grid[point] == 0:
             return point, distance
 
     return None, max_distance

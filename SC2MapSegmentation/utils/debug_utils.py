@@ -30,9 +30,10 @@ def draw_point(
         text (str, optional): The text to draw
     """
     height = get_terrain_z_height(game_info, point)
-    point = Point3((point.x + 0.5, point.y + 0.5, height + height_offset))
 
-    client.debug_box2_out(point, color=color)
+    p = Point3((point.x + 0.5, point.y + 0.5, height + height_offset))
+    client.debug_box2_out(p, color=color)
 
     if text:
-        client.debug_text_world(text, point, color=color)
+        p = Point3((point.x + 0.5, point.y + 0.5, height + height_offset + 0.5))
+        client.debug_text_world(text, p, color=color, size=12)

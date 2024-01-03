@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from typing import NamedTuple
 
 import numpy as np
 
@@ -9,8 +9,7 @@ from .region import Region
 from .passage import Passage
 
 
-@dataclass(frozen=True)
-class SegmentedMap:
+class SegmentedMap(NamedTuple):
     name: str
     regions_grid: np.ndarray
     regions: dict[int, Region]
@@ -21,4 +20,4 @@ class SegmentedMap:
 
     def region_at(self, point: Point2) -> Region:
         point = point.rounded
-        return self.regions[self.regions_grid[point.y, point.x]]
+        return self.regions[self.regions_grid[point]]

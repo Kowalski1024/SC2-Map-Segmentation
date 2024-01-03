@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Iterable, Mapping, Type
+from typing import Any, Iterable, Mapping, Type, Optional
 
 import numpy as np
 
@@ -8,7 +8,7 @@ from sc2.position import Point2
 from sc2.unit import Unit
 
 from .dataclasses.passage import ChokePoint, Passage, Ramp
-from .utils.algorithms import find_surrounding, flood_fill_all, group_connected_points
+from .algorithms import find_surrounding, flood_fill_all, group_connected_points
 from .utils.data_structures import Point
 from .utils.misc_utils import GROUND_HEIGHT, get_neighbors4, mark_unbuildable_tiles
 
@@ -31,12 +31,12 @@ def find_passages(
     # find all ramps
     ramp_tiles = flood_fill_all(
         grid.shape,
-        lambda p: grid[p.x, p.y] == 1 and height_grid[p.x, p.y] not in GROUND_HEIGHT,
+        lambda point: grid[point] == 1 and height_grid[point] not in GROUND_HEIGHT,
     )
     ramp_tiles = [tiles for tiles in ramp_tiles if len(tiles) >= threshold]
 
     for tiles in ramp_tiles:
-        tiles.update(find_surrounding(tiles, lambda p: grid[p.x, p.y] == 1))
+        tiles.update(find_surrounding(tiles, lambda point: grid[point] == 1))
 
     ramps = [
         create_passage(Ramp, game_info, tiles, destructables, minerals)
@@ -50,7 +50,7 @@ def find_passages(
     # find all chokes
     choke_tiles = flood_fill_all(
         grid.shape,
-        lambda p: grid[p.x, p.y] == 1 and height_grid[p.x, p.y] in GROUND_HEIGHT,
+        lambda point: grid[point] == 1 and height_grid[point] in GROUND_HEIGHT,
     )
 
     chokes = [
@@ -63,7 +63,7 @@ def find_passages(
 
 
 def find_passages_between_regions(
-    segmented_grid: np.ndarray,
+    segmented_grid: np.ndarray, game_info: GameInfo
 ) -> list[Passage]:
     passages = []
     connections_set = set()
@@ -72,28 +72,20 @@ def find_passages_between_regions(
     # find passages between regions
     for region_id in range(1, max_value + 1):
         indices = np.where(segmented_grid == region_id)
-        region_points = map(Point, zip(indices[0], indices[1]))
+        region_points = [Point(x, y) for x, y in zip(*indices)]
 
         surrounding = find_surrounding(
             region_points,
-            lambda p: segmented_grid[p.y, p.x] > 0,
+            lambda point: segmented_grid[point] > 0,
             get_neighbors=get_neighbors4,
         )
         connections_set.update(surrounding)
 
     # create passages
-    for group in group_connected_points(connections_set, True):
-        unique_tiles = set(segmented_grid[p.x, p.y] for p in group)
+    for group in group_connected_points(connections_set, get_neighbors=get_neighbors4):
+        unique_tiles = set(segmented_grid[point] for point in group)
         if len(unique_tiles) > 1:
-            passages.append(
-                Passage(
-                    surrounding_tiles=frozenset(group),
-                    tiles=frozenset(),
-                    vision_blockers=None,
-                    destructables=None,
-                    minerals=None,
-                )
-            )
+            passages.append(create_passage(ChokePoint, game_info, [], [], [], surrounding_tiles=group))
 
     return passages
 
@@ -109,7 +101,7 @@ def update_passage_connections(
 
         connections = defaultdict(list)
         for point in passage.surrounding_tiles:
-            grid_value = segmented_grid[point.x, point.y]
+            grid_value = segmented_grid[point]
 
             if grid_value == 0:
                 continue
@@ -145,6 +137,7 @@ def passage_info(
         ),
         "minerals": {m.tag for m in minerals if m.position.rounded in tiles},
         "destructables": {d.tag for d in destructables if d.position.rounded in tiles},
+        "connections": {},
     }
 
 
@@ -154,9 +147,13 @@ def create_passage(
     tiles: Iterable[Point],
     destructables: Iterable[Unit],
     minerals: Iterable[Unit],
+    surrounding_tiles: Optional[Iterable[Point]] = None,
 ) -> Passage:
     grid = game_info.placement_grid.data_numpy.T
-    surrounding_tiles = find_surrounding(tiles, lambda p: grid[p.x, p.y] == 1)
+
+    if surrounding_tiles is None:
+        surrounding_tiles = find_surrounding(tiles, lambda point: grid[point] == 1)
+
     info = passage_info(game_info, tiles, surrounding_tiles, destructables, minerals)
 
     if passage_type == Ramp:

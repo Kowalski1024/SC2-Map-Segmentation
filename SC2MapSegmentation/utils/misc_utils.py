@@ -1,5 +1,6 @@
 from itertools import chain
-from typing import Iterable
+from typing import Iterable, Any
+import json
 
 import numpy as np
 
@@ -13,6 +14,15 @@ from .destructables import change_destructable_status_in_grid
 GROUND_HEIGHT = (175, 191, 207)
 FOUR_DIRECTIONS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 EIGHT_DIRECTIONS = FOUR_DIRECTIONS + [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+
+
+def get_config(map_name: str, configs_path: str = "SC2MapSegmentation\configs", default: str = 'default.json') -> dict[str, Any]:
+    try:
+        with open(f"{configs_path}/{map_name}.json") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        with open(f"{configs_path}/{default}") as f:
+            return json.load(f)
 
 
 def get_terrain_z_height(game_info: GameInfo, posistion: Point2) -> float:
