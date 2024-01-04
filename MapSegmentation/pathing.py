@@ -1,23 +1,35 @@
 from collections import defaultdict
-from typing import Callable
 from queue import PriorityQueue
-
+from typing import Callable, Any
 
 from sc2.position import Point2
 
-from .dataclasses.segmented_map import SegmentedMap
 from .dataclasses.passage import Passage
 from .dataclasses.region import Region
+from .dataclasses.segmented_map import SegmentedMap
+
+
+def default_cost_func(
+    current: Point2, neighbor: Point2, costs: dict[Point2, float] = None
+) -> float:
+    distance = current.distance_to(neighbor)
+    return distance + (costs.get(neighbor, 0) if costs else 0)
 
 
 class Djikstra:
-    def __init__(self, map: SegmentedMap, cost_func: Callable = None):
+    def __init__(
+        self,
+        map: SegmentedMap,
+        cost_func: Callable[[Point2, Point2, Any], float] = default_cost_func,
+    ):
         self.map = map
         self.cost_func = cost_func
 
         self.mapping = {passage.center(): passage for passage in map.passages}
 
-    def _neighbors(self, point: Point2, end: Point2, avoid: set[type[Passage]]) -> list[Point2]:
+    def _neighbors(
+        self, point: Point2, end: Point2, avoid: tuple[type[Passage]]
+    ) -> list[Point2]:
         passage = self.mapping[point]
         neighbors = []
 
@@ -29,17 +41,17 @@ class Djikstra:
                 continue
 
             for next_passage in region.passages:
-                if next_passage is passage or avoid and next_passage in avoid:
+                if next_passage is passage or avoid and isinstance(next_passage, avoid):
                     continue
-                
+
                 neighbors.append(next_passage.center())
 
         return neighbors
-    
+
     def _closest_region(self, point: Point2) -> Region:
         if region := self.map.region_at(point):
             return region
-        
+
         directions = (Point2((0, 1)), Point2((0, -1)), Point2((-1, 0)), Point2((1, 0)))
 
         for distance in range(1, 10):
@@ -48,23 +60,29 @@ class Djikstra:
 
                 if region := self.map.region_at(neighbor):
                     return region
-        
-    def __call__(self, start: Point2, end: Point2, costs: dict[int, float] = None, avoid: set[type[Passage]] = None) -> list[Point2]:
+
+    def __call__(
+        self,
+        start: Point2,
+        end: Point2,
+        costs: Any = None,
+        avoid: tuple[type[Passage]] = (),
+    ) -> list[Point2]:
         start_region = self._closest_region(start)
         end_region = self._closest_region(end)
 
         if start_region is end_region:
             return [start, end]
-        
+
         visited: set[Point2] = {start}
         previous: dict[Point2, Point2] = {}
         queue: PriorityQueue[tuple[float, Point2]] = PriorityQueue()
         distances: dict[Point2, float] = defaultdict(lambda: float("inf"))
 
         distances[start] = 0
-        
+
         for passage in start_region.passages:
-            if avoid and passage in avoid:
+            if avoid and isinstance(passage, avoid):
                 continue
 
             distance = start.distance_to(passage.center())
@@ -92,7 +110,7 @@ class Djikstra:
                 if neighbor in visited:
                     continue
 
-                distance = distances[current] + current.distance_to(neighbor)
+                distance = distances[current] + self.cost_func(current, neighbor, costs)
 
                 if distance < distances[neighbor]:
                     distances[neighbor] = distance
@@ -100,10 +118,3 @@ class Djikstra:
                     queue.put((distance, neighbor))
 
         return []
-
-        
-
-        
-
-
-    

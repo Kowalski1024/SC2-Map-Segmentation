@@ -1,10 +1,6 @@
-from typing import Union
-
 import numpy as np
 
-from sc2.position import Point2
-
-from .utils.data_structures import Point
+from .utils import Point
 
 
 def direction(line_start: np.ndarray, line_end: np.ndarray) -> np.ndarray:
@@ -34,9 +30,9 @@ def filter_points(
 
 
 def mirror_points_across_line(
-    points_to_mirror: list[Union[Point, Point2]],
-    line_start: Union[Point, Point2],
-    line_end: Union[Point, Point2],
+    points_to_mirror: list[Point],
+    line_start: Point,
+    line_end: Point,
     by_midpoint: bool = False,
     side: str = "left",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -76,9 +72,9 @@ def mirror_points_across_line(
 
 
 def perpendicular_bisector(
-    line_start: Union[Point, Point2],
-    line_end: Union[Point, Point2],
-) -> tuple[Union[Point, Point2], Union[Point, Point2]]:
+    line_start: Point,
+    line_end: Point,
+) -> tuple[Point, Point]:
     """
     This function calculates the perpendicular bisector of a line defined by two points (line_start and line_end).
 

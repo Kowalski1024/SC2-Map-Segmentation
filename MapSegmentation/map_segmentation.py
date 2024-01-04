@@ -19,23 +19,21 @@ from .algorithms import (
 from .dataclasses.passage import ChokePoint, Passage, Ramp
 from .dataclasses.region import Region
 from .dataclasses.segmented_map import SegmentedMap
+from .math import mirror_points_across_line, perpendicular_bisector
 from .passages import (
+    find_cliff_passages,
     find_passages,
     find_passages_between_regions,
-    find_cliff_passages,
     update_passage_connections,
 )
-from .utils.data_structures import Point
+from .utils import TuplePoint
 from .utils.misc_utils import get_config, get_neighbors4
-from .math import mirror_points_across_line, perpendicular_bisector
-
-import matplotlib.pyplot as plt
 
 EMPTY_REGION_INDEX = 0
 
 
 def map_segmentation(
-    bot: BotAIInternal, configs_path: str = "SC2MapSegmentation\configs"
+    bot: BotAIInternal, configs_path: str = "MapSegmentation\configs"
 ) -> SegmentedMap:
     def mirror_points(points: Iterable[Point2]) -> list[Point2]:
         map_center = bot.game_info.map_center
@@ -235,7 +233,7 @@ def clear_and_relabel_grid(
     # remove regions that are too small or are surrounded by a larger region
     for region_id in range(1, max_value + 1):
         indices = np.where(segmented_grid == region_id)
-        region_points = [Point(x, y) for x, y in zip(*indices)]
+        region_points = [TuplePoint(x, y) for x, y in zip(*indices)]
 
         region_size = len(region_points)
         if region_size == 0:
@@ -291,7 +289,9 @@ def propagate_region(
         ]
 
     def add_chokes(
-        choke_points: list[tuple[np.ndarray, np.ndarray]], from_value: int, to_value: int
+        choke_points: list[tuple[np.ndarray, np.ndarray]],
+        from_value: int,
+        to_value: int,
     ) -> None:
         """Adds choke lines to the grid"""
         if not choke_points:
@@ -300,7 +300,9 @@ def propagate_region(
         rows, columns = zip(*choke_points)
         rows = np.concatenate(rows)
         columns = np.concatenate(columns)
-        grid[rows, columns] = np.where(grid[rows, columns] == from_value, to_value, grid[rows, columns])
+        grid[rows, columns] = np.where(
+            grid[rows, columns] == from_value, to_value, grid[rows, columns]
+        )
 
     # get the map center
     map_center = game_info.map_center

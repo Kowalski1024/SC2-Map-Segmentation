@@ -1,6 +1,6 @@
-from itertools import chain
-from typing import Iterable, Any, Union
 import json
+from itertools import chain
+from typing import Any, Iterable
 
 import numpy as np
 
@@ -8,16 +8,22 @@ from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.unit import Unit
 
-from .data_structures import Point
+from . import Point
 from .destructables import change_destructable_status_in_grid
 
 GROUND_HEIGHT = (175, 191, 207)
 FOUR_DIRECTIONS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 EIGHT_DIRECTIONS = FOUR_DIRECTIONS + [(1, 1), (1, -1), (-1, 1), (-1, -1)]
-OUTER_RING_5X5 = [(x, y) for x in range(-2, 3) for y in range(-2, 3) if abs(x) == 2 or abs(y) == 2]
+OUTER_RING_5X5 = [
+    (x, y) for x in range(-2, 3) for y in range(-2, 3) if abs(x) == 2 or abs(y) == 2
+]
 
 
-def get_config(map_name: str, configs_path: str = "SC2MapSegmentation\configs", default: str = 'default.json') -> dict[str, Any]:
+def get_config(
+    map_name: str,
+    configs_path: str = "MapSegmentation\configs",
+    default: str = "default.json",
+) -> dict[str, Any]:
     try:
         with open(f"{configs_path}/{map_name}.json") as f:
             return json.load(f)
@@ -50,8 +56,9 @@ def get_neighbors4(point: Point) -> list[Point]:
     Returns:
         list[Point]: The neighbors of the point
     """
+    _type = type(point)
     x, y = point
-    return [Point(x + dx, y + dy) for dx, dy in FOUR_DIRECTIONS]
+    return [_type((x + dx, y + dy)) for dx, dy in FOUR_DIRECTIONS]
 
 
 def get_neighbors8(point: Point) -> list[Point]:
@@ -64,8 +71,9 @@ def get_neighbors8(point: Point) -> list[Point]:
     Returns:
         list[Point]: The neighbors of the point
     """
+    _type = type(point)
     x, y = point
-    return [Point(x + dx, y + dy) for dx, dy in EIGHT_DIRECTIONS]
+    return [_type(x + dx, y + dy) for dx, dy in EIGHT_DIRECTIONS]
 
 
 def get_neighbors5x5_outer(point: Point) -> list[Point]:
@@ -78,8 +86,9 @@ def get_neighbors5x5_outer(point: Point) -> list[Point]:
     Returns:
         list[Point]: The neighbors of the point
     """
+    _type = type(point)
     x, y = point
-    return [Point(x + dx, y + dy) for dx, dy in OUTER_RING_5X5]
+    return [_type(x + dx, y + dy) for dx, dy in OUTER_RING_5X5]
 
 
 def mark_unbuildable_tiles(

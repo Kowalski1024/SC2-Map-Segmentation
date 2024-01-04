@@ -6,9 +6,9 @@ from sc2.client import Client
 from sc2.game_info import GameInfo
 from sc2.position import Point2, Point3
 
-import SC2MapSegmentation.utils.debug_utils as debug
-from SC2MapSegmentation.utils.misc_utils import get_terrain_z_height
-from SC2MapSegmentation.algorithms import group_connected_points
+import MapSegmentation.utils.debug_utils as debug
+from MapSegmentation.utils.misc_utils import get_terrain_z_height
+from MapSegmentation.algorithms import group_connected_points
 
 
 class Passage(NamedTuple):
@@ -20,6 +20,8 @@ class Passage(NamedTuple):
     vision_blockers: Optional[frozenset[Point2]] = None
     destructables: Optional[set[int]] = None
     minerals: Optional[set[int]] = None
+
+    passable: bool = False
 
     def center(self) -> Point2:
         points = self.tiles if self.tiles else self.surrounding_tiles

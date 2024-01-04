@@ -6,11 +6,14 @@ import numpy as np
 
 from sc2.position import Point2
 
-from .utils.data_structures import FindUnion, Point
+from .utils import Point, TuplePoint
+from .utils.data_structures import FindUnion
 from .utils.misc_utils import get_neighbors8
 
 
-def pathable_height_grid(terrain_height: np.ndarray, placement_grid: np.ndarray) -> np.ndarray:
+def pathable_height_grid(
+    terrain_height: np.ndarray, placement_grid: np.ndarray
+) -> np.ndarray:
     """
     Returns a grid of the height of the pathable tiles
 
@@ -78,7 +81,7 @@ def flood_fill_all(
     grid_shape: tuple[int, int],
     is_accessible: Callable[[Point], bool],
     get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
-) -> list[set[Point]]:
+) -> list[set[TuplePoint]]:
     """
     Finds all accessible areas in a grid
 
@@ -96,7 +99,7 @@ def flood_fill_all(
 
     for x in range(width):
         for y in range(height):
-            point = Point(x, y)
+            point = TuplePoint(x, y)
 
             if point in seen or not is_accessible(point):
                 continue
@@ -201,7 +204,10 @@ def filter_obtuse_points(
                 # if the distance between two points is too far and the angle between them is obtuse
                 # then skip the second point till the angle between them is desired
                 if point1.manhattan_distance(point2) > 2:
-                    while angle_between_points(point1 + offset, location, point2 + offset) > angle:
+                    while (
+                        angle_between_points(point1 + offset, location, point2 + offset)
+                        > angle
+                    ):
                         new_points.pop(point2)
                         point2 = next(points_iter)
 

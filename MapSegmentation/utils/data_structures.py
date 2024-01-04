@@ -1,11 +1,6 @@
-from typing import Hashable, Iterable, NamedTuple, TypeVar
+from typing import Hashable, Iterable, TypeVar
 
 T = TypeVar("T", bound=Hashable)
-
-
-class Point(NamedTuple):
-    x: int
-    y: int
 
 
 class FindUnion:

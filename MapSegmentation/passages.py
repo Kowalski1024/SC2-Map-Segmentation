@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Iterable, Mapping, Type, Optional
+from typing import Any, Iterable, Mapping, Optional, Type
 
 import numpy as np
 
@@ -7,9 +7,15 @@ from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.unit import Unit
 
-from .dataclasses.passage import ChokePoint, Passage, Ramp, Cliff
-from .algorithms import find_surrounding, flood_fill_all, group_connected_points, pathable_height_grid
-from .utils.data_structures import Point, FindUnion
+from .algorithms import (
+    find_surrounding,
+    flood_fill_all,
+    group_connected_points,
+    pathable_height_grid,
+)
+from .dataclasses.passage import ChokePoint, Cliff, Passage, Ramp
+from .utils import Point, TuplePoint
+from .utils.data_structures import FindUnion
 from .utils.misc_utils import (
     GROUND_HEIGHT,
     get_neighbors4,
@@ -124,7 +130,7 @@ def find_passages_between_regions(
     # find passages between regions
     for region_id in range(1, max_value + 1):
         indices = np.where(segmented_grid == region_id)
-        region_points = [Point(x, y) for x, y in zip(*indices)]
+        region_points = [TuplePoint(x, y) for x, y in zip(*indices)]
 
         surrounding = find_surrounding(
             region_points,

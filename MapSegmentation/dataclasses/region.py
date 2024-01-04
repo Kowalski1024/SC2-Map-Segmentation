@@ -6,8 +6,8 @@ from sc2.client import Client
 from sc2.game_info import GameInfo
 
 from .passage import Passage
-from SC2MapSegmentation.utils.misc_utils import get_terrain_z_height
-from SC2MapSegmentation.utils.debug_utils import WHITE, GREEN
+from MapSegmentation.utils.misc_utils import get_terrain_z_height
+from MapSegmentation.utils.debug_utils import WHITE, GREEN
 
 
 class Region(NamedTuple):
