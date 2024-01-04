@@ -22,6 +22,9 @@ class Region(NamedTuple):
     def center(self) -> Point2:
         x, y = self.indices[0].mean(), self.indices[1].mean()
         return Point2((x, y))
+    
+    def tiles(self) -> set[Point2]:
+        return {Point2((x, y)) for x, y in zip(*self.indices)}
 
     def draw_center(
         self, game_info: GameInfo, client: Client, height_offset: float = 0

@@ -10,6 +10,36 @@ from .utils.data_structures import FindUnion, Point
 from .utils.misc_utils import get_neighbors8
 
 
+def pathable_height_grid(terrain_height: np.ndarray, placement_grid: np.ndarray) -> np.ndarray:
+    """
+    Returns a grid of the height of the pathable tiles
+
+    Args:
+        terrain_height (np.ndarray): terrain height grid
+        placement_grid (np.ndarray): placement grid
+
+    Returns:
+        np.ndarray: height grid
+    """
+    height_grid = terrain_height.copy()
+    pathing_grid = placement_grid
+
+    group_of_tiles = flood_fill_all(
+        pathing_grid.shape,
+        lambda point: pathing_grid[point] == 1,
+    )
+
+    for group in group_of_tiles:
+        point = next(iter(group))
+        height = height_grid[point]
+        x, y = np.array(list(zip(*group)))
+        height_grid[x, y] = height
+
+    np.putmask(height_grid, np.logical_not(pathing_grid), 0)
+
+    return height_grid
+
+
 def flood_fill(
     start: Point,
     is_accessible: Callable[[Point], bool],
@@ -164,13 +194,14 @@ def filter_obtuse_points(
         new_points = {point: None for point in points}
         points_iter = chain(points, points)
         point1 = next(points_iter)
+        offset = Point2((0.5, 0.5))
 
         try:
             for point2 in points_iter:
                 # if the distance between two points is too far and the angle between them is obtuse
                 # then skip the second point till the angle between them is desired
                 if point1.manhattan_distance(point2) > 2:
-                    while angle_between_points(point1, location, point2) > angle:
+                    while angle_between_points(point1 + offset, location, point2 + offset) > angle:
                         new_points.pop(point2)
                         point2 = next(points_iter)
 
@@ -216,7 +247,11 @@ def scan_unbuildable_points(
         )
 
     # get the direction vector from the location to the map center
-    ray = (location - map_center).normalized
+    try:
+        ray = (location - map_center).normalized
+    except AssertionError:
+        ray = Point2((0, 1))
+
     ray = np.array([[ray.x], [ray.y]])
 
     point_list = {}
@@ -224,7 +259,7 @@ def scan_unbuildable_points(
     if counterclockwise:
         degrees = range(0, 360, step)
     else:
-        degrees = range(360, 0, -step)
+        degrees = range(0, -360, -step)
 
     # scan in a circle around the location
     for degree in degrees:

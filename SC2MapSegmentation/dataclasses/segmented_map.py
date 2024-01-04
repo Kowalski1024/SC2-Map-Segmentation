@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import numpy as np
 
@@ -19,6 +19,9 @@ class SegmentedMap(NamedTuple):
     game_info: GameInfo
     config: dict[str, int]
 
-    def region_at(self, point: Point2) -> Region:
+    def region_at(self, point: Point2) -> Optional[Region]:
         point = point.rounded
-        return self.regions[self.regions_grid[point]]
+        try:
+            return self.regions[self.regions_grid[point]]
+        except KeyError:
+            return None

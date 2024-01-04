@@ -7,10 +7,15 @@ from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.unit import Unit
 
-from .dataclasses.passage import ChokePoint, Passage, Ramp
-from .algorithms import find_surrounding, flood_fill_all, group_connected_points
-from .utils.data_structures import Point
-from .utils.misc_utils import GROUND_HEIGHT, get_neighbors4, mark_unbuildable_tiles
+from .dataclasses.passage import ChokePoint, Passage, Ramp, Cliff
+from .algorithms import find_surrounding, flood_fill_all, group_connected_points, pathable_height_grid
+from .utils.data_structures import Point, FindUnion
+from .utils.misc_utils import (
+    GROUND_HEIGHT,
+    get_neighbors4,
+    get_neighbors5x5_outer,
+    mark_unbuildable_tiles,
+)
 
 
 def find_passages(
@@ -62,6 +67,53 @@ def find_passages(
     return ramps + chokes
 
 
+def find_cliff_passages(
+    game_info: GameInfo,
+    passages: Iterable[Passage],
+) -> list[Passage]:
+    height_grid = pathable_height_grid(
+        game_info.terrain_height.data_numpy.T,
+        game_info.placement_grid.data_numpy.T,
+    )
+
+    for passage in passages:
+        height_grid[passage.tiles_indices()] = 0
+
+    find_union = FindUnion([])
+    non_zero = np.nonzero(height_grid)
+    for x, y in zip(*non_zero):
+        height = height_grid[x, y]
+
+        if height == 0 or height not in GROUND_HEIGHT:
+            continue
+
+        point = Point2((x, y))
+        neighbors = get_neighbors5x5_outer(point)
+
+        for neighbor in neighbors:
+            neighbor_height = height_grid[neighbor]
+            if (
+                neighbor_height == 0
+                or neighbor_height == height
+                or height not in GROUND_HEIGHT
+            ):
+                continue
+
+            find_union.add(point)
+            find_union.add(neighbor)
+            find_union.union(point, neighbor)
+
+    passages = []
+    groups = find_union.groups()
+    for group in groups:
+        group = np.array(list(group))
+        passages.append(
+            create_passage(Cliff, game_info, [], [], [], surrounding_tiles=group)
+        )
+
+    return passages
+
+
 def find_passages_between_regions(
     segmented_grid: np.ndarray, game_info: GameInfo
 ) -> list[Passage]:
@@ -85,7 +137,11 @@ def find_passages_between_regions(
     for group in group_connected_points(connections_set, get_neighbors=get_neighbors4):
         unique_tiles = set(segmented_grid[point] for point in group)
         if len(unique_tiles) > 1:
-            passages.append(create_passage(ChokePoint, game_info, [], [], [], surrounding_tiles=group))
+            passages.append(
+                create_passage(
+                    ChokePoint, game_info, [], [], [], surrounding_tiles=group
+                )
+            )
 
     return passages
 
@@ -162,8 +218,10 @@ def create_passage(
         if len(groups) != 2:
             raise ValueError(f"Expected 2 groups, got {len(groups)}.")
 
-        return Ramp(
-            **info,
-        )
-    else:
+        return Ramp(**info)
+    elif passage_type == ChokePoint:
         return ChokePoint(**info)
+    elif passage_type == Cliff:
+        return Cliff(**info)
+    else:
+        raise ValueError(f"Unknown passage type {passage_type}.")

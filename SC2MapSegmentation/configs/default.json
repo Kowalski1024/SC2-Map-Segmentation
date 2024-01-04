@@ -2,7 +2,7 @@
     "region_min_size": 20,
     "bases": {
         "max_distance": 25,
-        "filter_angle": 1.75
+        "filter_angle": 1.85
     },
     "watch_towers": {
         "enabled": false,

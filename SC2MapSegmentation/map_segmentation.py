@@ -22,10 +22,14 @@ from .dataclasses.segmented_map import SegmentedMap
 from .passages import (
     find_passages,
     find_passages_between_regions,
+    find_cliff_passages,
     update_passage_connections,
 )
 from .utils.data_structures import Point
 from .utils.misc_utils import get_config, get_neighbors4
+from .math import mirror_points_across_line, perpendicular_bisector
+
+import matplotlib.pyplot as plt
 
 EMPTY_REGION_INDEX = 0
 
@@ -33,7 +37,27 @@ EMPTY_REGION_INDEX = 0
 def map_segmentation(
     bot: BotAIInternal, configs_path: str = "SC2MapSegmentation\configs"
 ) -> SegmentedMap:
+    def mirror_points(points: Iterable[Point2]) -> list[Point2]:
+        map_center = bot.game_info.map_center
+        line_start = min(bot.start_location, bot.enemy_start_locations[0])
+        line_end = max(bot.start_location, bot.enemy_start_locations[0])
+        line_start, line_end = perpendicular_bisector(line_start, line_end)
+
+        # center reflection
+        if (line_start + line_end) / 2 == map_center:
+            points, mirrored, middle = mirror_points_across_line(
+                points, line_start, line_end, by_midpoint=True, side="left"
+            )
+        else:
+            points, mirrored, middle = mirror_points_across_line(
+                points, line_start, line_end, side="left"
+            )
+
+        return map(Point2, np.concatenate([middle, points, mirrored]))
+
     def propagete(points: Iterable[Point2], region_config: str) -> None:
+        points = mirror_points(points)
+
         max_value = np.max(segmentation_grid) + 1
         for i, location in enumerate(points):
             if segmentation_grid[location.rounded] == -1:
@@ -76,18 +100,18 @@ def map_segmentation(
         logger.info("Propagating watch towers")
         propagete((unit.position for unit in bot.watchtowers), watch_towers_config)
 
-        # create the regions from the ramps
-        logger.info("Propagating ramps")
-        locations = []
-        ramp_config = config["ramps"]
-        for passage in passages:
-            if isinstance(passage, Ramp):
-                locations.extend(
-                    passage.calculate_side_points(ramp_config["distance_multiplier"])
-                )
+    # create the regions from the ramps and map center
+    logger.info("Propagating ramps")
+    locations = [map_center]
+    ramp_config = config["ramps"]
+    for passage in passages:
+        if isinstance(passage, Ramp):
+            locations.extend(
+                passage.calculate_side_points(ramp_config["distance_multiplier"])
+            )
 
-        locations.sort(key=lambda point: point.distance_to(map_center))
-        propagete(locations, ramp_config)
+    locations.sort(key=lambda point: point.distance_to(map_center))
+    propagete(locations, ramp_config)
 
     # create the region from choke points
     logger.info("Propagating choke points")
@@ -106,6 +130,7 @@ def map_segmentation(
     logger.info("Clearing and relabeling the grid")
     clear_and_relabel_grid(segmentation_grid)
 
+    passages += find_cliff_passages(bot.game_info, passages)
     passages += find_passages_between_regions(segmentation_grid, bot.game_info)
     passages = update_passage_connections(passages, segmentation_grid)
 
@@ -257,21 +282,25 @@ def propagate_region(
     max_distance: int = 25,
     filter_angle: float = np.pi * 0.6,
 ) -> None:
-    def find_chokes(points: list[Point2]) -> list[tuple[Point2, Point2]]:
+    def find_chokes(points: list[Point2]) -> list[tuple[np.ndarray, np.ndarray]]:
         """Finds the choke points in a list of points"""
         return [
-            (point_a, point_b)
+            line(point_a.x, point_a.y, point_b.x, point_b.y)
             for point_a, point_b in zip(points, points[1:] + points[:1])
             if point_a.manhattan_distance(point_b) > 2
         ]
 
     def add_chokes(
-        choke_points: list[tuple[Point2, Point2]], from_value: int, to_value: int
+        choke_points: list[tuple[np.ndarray, np.ndarray]], from_value: int, to_value: int
     ) -> None:
         """Adds choke lines to the grid"""
-        for point_a, point_b in choke_points:
-            rr, cc = line(point_a.x, point_a.y, point_b.x, point_b.y)
-            grid[rr, cc] = np.where(grid[rr, cc] == from_value, to_value, grid[rr, cc])
+        if not choke_points:
+            return
+
+        rows, columns = zip(*choke_points)
+        rows = np.concatenate(rows)
+        columns = np.concatenate(columns)
+        grid[rows, columns] = np.where(grid[rows, columns] == from_value, to_value, grid[rows, columns])
 
     # get the map center
     map_center = game_info.map_center
@@ -290,6 +319,7 @@ def propagate_region(
         counterclockwise=counterclockwise,
     )
     depth_points_list = filter_obtuse_points(depth_points_raw, location, filter_angle)
+    depth_points_list = [point for point in depth_points_list]
 
     chokes = find_chokes(depth_points_list)
     add_chokes(chokes, from_value=-1, to_value=-2)

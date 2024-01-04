@@ -24,17 +24,21 @@ class Passage(NamedTuple):
     def center(self) -> Point2:
         points = self.tiles if self.tiles else self.surrounding_tiles
         return Point2.center(points)
-    
+
     def tiles_indices(self) -> tuple[np.array, np.array]:
         x, y = zip(*self.tiles)
         return np.array(x), np.array(y)
     
+    def surrounding_tiles_indices(self) -> tuple[np.array, np.array]:
+        x, y = zip(*self.surrounding_tiles)
+        return np.array(x), np.array(y)
+
     def calculate_side_points(self, distance_multiplier: int = 5) -> list[Point2]:
         def calculate_vector(point_group: Iterable[Point2], center: Point2) -> Point2:
             side_center = Point2.center(point_group)
             vector = (side_center - center).normalized
             return side_center + vector * distance_multiplier
-        
+
         locations = []
         center = self.center()
 
@@ -62,8 +66,10 @@ class Passage(NamedTuple):
             f"destructables_length={len(self.destructables)}, "
             f"minerals_length={len(self.minerals)})"
         )
-    
-    def draw_boxes(self, game_info: GameInfo, client: Client, height_offset: float = -0.15):
+
+    def draw_boxes(
+        self, game_info: GameInfo, client: Client, height_offset: float = -0.15
+    ):
         for point in self.tiles:
             debug.draw_point(game_info, client, point, height_offset + 0.1, debug.RED)
 
@@ -72,16 +78,28 @@ class Passage(NamedTuple):
         center = self.center()
         center = Point3((center.x, center.y, get_terrain_z_height(game_info, center)))
         client.debug_sphere_out(center, r=1, color=debug.WHITE)
+        client.debug_text_world(
+            f"{self.__class__.__name__}", center, size=16, color=debug.WHITE
+        )
 
-    def draw_surrounding_regions(self, game_info: GameInfo, client: Client, height_offset: float = -0.15):
+    def draw_surrounding_regions(
+        self, game_info: GameInfo, client: Client, height_offset: float = -0.15
+    ):
         if self.connections:
             for region, points in self.connections.items():
                 for point in points:
-                    debug.draw_point(game_info, client, point, height_offset, debug.GREEN, f"{region}")
+                    debug.draw_point(
+                        game_info,
+                        client,
+                        point,
+                        height_offset,
+                        debug.GREEN,
+                        f"{region}",
+                    )
         else:
             for point in self.surrounding_tiles:
                 debug.draw_point(game_info, client, point, height_offset, debug.GREEN)
-    
+
 
 class Ramp(Passage):
     pass

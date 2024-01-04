@@ -17,8 +17,19 @@ class FindUnion:
     """
 
     def __init__(self, items: Iterable[T]) -> None:
-        self.items = items
+        self.items = list(items)
         self.parents = {item: item for item in items}
+
+    def add(self, item: T) -> None:
+        """
+        Adds an item to the data structure
+
+        Args:
+            item (T): item to add
+        """
+        if item not in self.parents:
+            self.items.append(item)
+            self.parents[item] = item
 
     def find(self, item: T) -> T:
         """

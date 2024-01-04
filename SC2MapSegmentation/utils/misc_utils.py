@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Iterable, Any
+from typing import Iterable, Any, Union
 import json
 
 import numpy as np
@@ -14,6 +14,7 @@ from .destructables import change_destructable_status_in_grid
 GROUND_HEIGHT = (175, 191, 207)
 FOUR_DIRECTIONS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 EIGHT_DIRECTIONS = FOUR_DIRECTIONS + [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+OUTER_RING_5X5 = [(x, y) for x in range(-2, 3) for y in range(-2, 3) if abs(x) == 2 or abs(y) == 2]
 
 
 def get_config(map_name: str, configs_path: str = "SC2MapSegmentation\configs", default: str = 'default.json') -> dict[str, Any]:
@@ -37,20 +38,6 @@ def get_terrain_z_height(game_info: GameInfo, posistion: Point2) -> float:
         float: The terrain z height of the position
     """
     return -16 + 32 * game_info.terrain_height[posistion.rounded] / 255
-
-
-def valid_point(grid: np.ndarray, point: Point2) -> bool:
-    """
-    Returns whether a point is valid
-
-    Args:
-        grid (np.ndarray): The grid to check the point against
-        point (Point2): The point to check
-
-    Returns:
-        bool: Whether the point is valid
-    """
-    return 0 <= point.x < grid.shape[0] and 0 <= point.y < grid.shape[1]
 
 
 def get_neighbors4(point: Point) -> list[Point]:
@@ -79,6 +66,20 @@ def get_neighbors8(point: Point) -> list[Point]:
     """
     x, y = point
     return [Point(x + dx, y + dy) for dx, dy in EIGHT_DIRECTIONS]
+
+
+def get_neighbors5x5_outer(point: Point) -> list[Point]:
+    """
+    Returns the 5x5 outer neighbors of a point in a grid
+
+    Args:
+        point (Point): The point to get the neighbors of
+
+    Returns:
+        list[Point]: The neighbors of the point
+    """
+    x, y = point
+    return [Point(x + dx, y + dy) for dx, dy in OUTER_RING_5X5]
 
 
 def mark_unbuildable_tiles(
