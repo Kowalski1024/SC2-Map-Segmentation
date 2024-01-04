@@ -2,21 +2,21 @@
     "region_min_size": 20,
     "bases": {
         "max_distance": 25,
-        "filter_angle": 1.885
+        "filter_angle": 1.75
     },
     "watch_towers": {
         "enabled": false,
         "max_distance": 25,
-        "filter_angle": 1.885
+        "filter_angle": 1.75
     },
     "ramps": {
         "max_distance": 25,
-        "filter_angle": 1.885,
-        "distance_multiplier": 5
+        "filter_angle": 1.75,
+        "distance_multiplier": 4
     },
     "chokes": {
         "max_distance": 25,
-        "filter_angle": 1.885,
-        "distance_multiplier": 5
+        "filter_angle": 1.75,
+        "distance_multiplier": 4
     }
 }

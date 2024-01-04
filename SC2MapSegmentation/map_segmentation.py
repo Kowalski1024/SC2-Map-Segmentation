@@ -1,35 +1,38 @@
-from sc2.bot_ai_internal import BotAIInternal
 from collections import Counter
-from typing import Iterable, Mapping, Any
+from typing import Iterable
 
 import numpy as np
+from loguru import logger
 from skimage.draw import line
 from skimage.morphology import flood_fill
-from loguru import logger
 
-from sc2.position import Point2
+from sc2.bot_ai_internal import BotAIInternal
 from sc2.game_info import GameInfo
+from sc2.position import Point2
 
-from .dataclasses.passage import Passage, ChokePoint, Ramp
-from .dataclasses.region import Region
-from .dataclasses.segmented_map import SegmentedMap
 from .algorithms import (
     filter_obtuse_points,
-    scan_unbuildable_points,
-    flood_fill_all,
     find_surrounding,
+    flood_fill_all,
+    scan_unbuildable_points,
+)
+from .dataclasses.passage import ChokePoint, Passage, Ramp
+from .dataclasses.region import Region
+from .dataclasses.segmented_map import SegmentedMap
+from .passages import (
+    find_passages,
+    find_passages_between_regions,
+    update_passage_connections,
 )
 from .utils.data_structures import Point
-from .utils.misc_utils import get_neighbors4, get_config
-from .passages import find_passages, find_passages_between_regions, update_passage_connections
-
-import matplotlib.pyplot as plt
-
+from .utils.misc_utils import get_config, get_neighbors4
 
 EMPTY_REGION_INDEX = 0
 
 
-def map_segmentation(bot: BotAIInternal, configs_path: str = "SC2MapSegmentation\configs") -> SegmentedMap:
+def map_segmentation(
+    bot: BotAIInternal, configs_path: str = "SC2MapSegmentation\configs"
+) -> SegmentedMap:
     def propagete(points: Iterable[Point2], region_config: str) -> None:
         max_value = np.max(segmentation_grid) + 1
         for i, location in enumerate(points):
@@ -79,8 +82,10 @@ def map_segmentation(bot: BotAIInternal, configs_path: str = "SC2MapSegmentation
         ramp_config = config["ramps"]
         for passage in passages:
             if isinstance(passage, Ramp):
-                locations.extend(passage.calculate_side_points(ramp_config["distance_multiplier"]))
-        
+                locations.extend(
+                    passage.calculate_side_points(ramp_config["distance_multiplier"])
+                )
+
         locations.sort(key=lambda point: point.distance_to(map_center))
         propagete(locations, ramp_config)
 
@@ -90,7 +95,9 @@ def map_segmentation(bot: BotAIInternal, configs_path: str = "SC2MapSegmentation
     choke_config = config["chokes"]
     for passage in passages:
         if isinstance(passage, ChokePoint):
-            locations.extend(passage.calculate_side_points(choke_config["distance_multiplier"]))
+            locations.extend(
+                passage.calculate_side_points(choke_config["distance_multiplier"])
+            )
 
     locations.sort(key=lambda point: point.distance_to(map_center))
     propagete(locations, choke_config)
@@ -112,10 +119,8 @@ def map_segmentation(bot: BotAIInternal, configs_path: str = "SC2MapSegmentation
         passages=tuple(passages),
         base_locations=tuple(bot.expansion_locations_list),
         game_info=bot.game_info,
+        config=config,
     )
-
-    plt.imshow(segmentation_grid)
-    plt.show()
 
     return segmented_map
 
@@ -181,7 +186,7 @@ def create_regions(
         )
 
         regions[region_id] = region
-    print("-" * 10)
+
     return regions
 
 
@@ -191,7 +196,9 @@ def clear_and_relabel_grid(
     max_value = np.max(segmented_grid)
     # find the unlabbeled regions
     unlabbeled_regions = flood_fill_all(
-        segmented_grid.shape, lambda point: segmented_grid[point] == -1
+        segmented_grid.shape,
+        lambda point: segmented_grid[point] == -1,
+        get_neighbors=get_neighbors4,
     )
 
     # add the unlabbeled regions to the grid as new regions
@@ -210,8 +217,11 @@ def clear_and_relabel_grid(
             continue
 
         surrounding = find_surrounding(
-            region_points, lambda point: segmented_grid[point] > 0
+            region_points,
+            lambda point: segmented_grid[point] > 0,
+            get_neighbors=get_neighbors4,
         )
+        x, y = zip(*region_points)
 
         tiles_per_region = Counter((segmented_grid[point] for point in surrounding))
         if tiles_per_region and (
@@ -219,11 +229,18 @@ def clear_and_relabel_grid(
             >= region_size
             or region_size < min_size
         ):
-            x, y = zip(*region_points)
             segmented_grid[x, y] = val[0]
         elif region_size < 10:
-            x, y = zip(*region_points)
-            segmented_grid[x, y] = 0
+            surrounding = find_surrounding(
+                region_points, lambda point: segmented_grid[point] > 0
+            )
+            tiles_per_region = Counter((segmented_grid[point] for point in surrounding))
+
+            if tiles_per_region:
+                val = tiles_per_region.most_common(1)[0]
+                segmented_grid[x, y] = val[0]
+            else:
+                segmented_grid[x, y] = 0
 
     # relabel the regions
     values = np.unique(segmented_grid)
@@ -248,15 +265,29 @@ def propagate_region(
             if point_a.manhattan_distance(point_b) > 2
         ]
 
-    def add_chokes(choke_points: list[tuple[Point2, Point2]], from_value: int, to_value: int) -> None:
+    def add_chokes(
+        choke_points: list[tuple[Point2, Point2]], from_value: int, to_value: int
+    ) -> None:
         """Adds choke lines to the grid"""
         for point_a, point_b in choke_points:
             rr, cc = line(point_a.x, point_a.y, point_b.x, point_b.y)
             grid[rr, cc] = np.where(grid[rr, cc] == from_value, to_value, grid[rr, cc])
 
+    # get the map center
     map_center = game_info.map_center
+
+    if location.y > map_center.y:
+        counterclockwise = True
+    else:
+        counterclockwise = False
+
+    # scan the map for unbuildable points
     depth_points_raw = scan_unbuildable_points(
-        location, scaning_grid, map_center, max_distance=max_distance
+        location,
+        scaning_grid,
+        map_center,
+        max_distance=max_distance,
+        counterclockwise=counterclockwise,
     )
     depth_points_list = filter_obtuse_points(depth_points_raw, location, filter_angle)
 

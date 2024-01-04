@@ -17,6 +17,7 @@ class SegmentedMap(NamedTuple):
     base_locations: tuple[Point2, ...]
 
     game_info: GameInfo
+    config: dict[str, int]
 
     def region_at(self, point: Point2) -> Region:
         point = point.rounded
