@@ -1,9 +1,8 @@
 from collections import deque
-from itertools import cycle
+from itertools import chain
 from typing import Callable, Iterable, Sequence
 
 import numpy as np
-from loguru import logger
 
 from sc2.position import Point2
 
@@ -160,44 +159,30 @@ def filter_obtuse_points(
         unit_vector2 = vector2 / np.linalg.norm(vector2)
         return np.arccos(np.clip(np.dot(unit_vector1, unit_vector2), -1.0, 1.0))
 
-    def filter_points(
-        points: Iterable[Point2], location: Point2, angle: float
-    ) -> list[Point2]:
+    def filter_points(points: Sequence[Point2]) -> dict[Point2, None]:
         """Filters points to form an convex hull-like shape around the location"""
-        new_points = {}
-        points_iter = cycle(points)
+        new_points = {point: None for point in points}
+        points_iter = chain(points, points)
         point1 = next(points_iter)
-        full_circle = False
 
-        for point2 in points_iter:
-            new_points[point1] = None
+        try:
+            for point2 in points_iter:
+                # if the distance between two points is too far and the angle between them is obtuse
+                # then skip the second point till the angle between them is desired
+                if point1.manhattan_distance(point2) > 2:
+                    while angle_between_points(point1, location, point2) > angle:
+                        new_points.pop(point2)
+                        point2 = next(points_iter)
 
-            # if the distance between two points is too far and the angle between them is obtuse
-            # then skip the second point till the angle between them is desired
-            if point1.manhattan_distance(point2) > 2 and point1.distance_to(
-                location
-            ) < point2.distance_to(location):
-                while angle_between_points(point1, location, point2) > angle:
-                    point2 = next(points_iter)
+                point1 = point2
+        except (StopIteration, KeyError):
+            pass
 
-                    if point2 in new_points:
-                        full_circle = True
+        return new_points
 
-            point1 = point2
-
-            if full_circle or point1 in new_points:
-                break
-
-        return list(new_points.keys())
-
-    def list_intersection(list_a: list[Point2], list_b: list[Point2]) -> list[Point2]:
-        """Returns the intersection of two lists"""
-        list_set = set(list_b)
-        return [value for value in list_a if value in list_set]
-
-    list_a = filter_points(reversed(points), location, angle)
-    list_b = filter_points(points, location, angle)
-    return list_intersection(list_a, list_b)
+    dict_a = filter_points(points[::-1])
+    dict_b = filter_points(points)
+    return [key for key in dict_a.keys() if key in dict_b]
 
 
 def scan_unbuildable_points(
@@ -206,6 +191,7 @@ def scan_unbuildable_points(
     map_center: Point2,
     step: int = 1,
     max_distance: int = 25,
+    counterclockwise: bool = True,
 ) -> list[Point2]:
     """
     Scans the map in a circle around the location and returns the first point that is not buildable
@@ -216,6 +202,7 @@ def scan_unbuildable_points(
         map_center (Point2): center of the map
         step (int, optional): step size in degrees
         max_distance (int, optional): maximum distance to scan
+        counterclockwise (bool, optional): direction to scan
 
     Returns:
         list[Point2]: list of points that are not buildable
@@ -234,8 +221,13 @@ def scan_unbuildable_points(
 
     point_list = {}
 
+    if counterclockwise:
+        degrees = range(0, 360, step)
+    else:
+        degrees = range(360, 0, -step)
+
     # scan in a circle around the location
-    for degree in range(0, 360, step):
+    for degree in degrees:
         rotated_ray = np.matmul(rotation_matrix(degree), ray)
         point, _ = scan_unbuildable_direction(location, rotated_ray, grid, max_distance)
 
