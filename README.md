@@ -1,9 +1,10 @@
 # Starcraft 2 Map Segmentation
-It's plugin for Python SC2 API [BurnySc2/python-sc2](https://github.com/BurnySc2/python-sc2). 
+This is a plugin for the Python SC2 API, [BurnySc2/python-sc2](https://github.com/BurnySc2/python-sc2).
 
-**SC2 Map Segmentation** is fully automated map segmentation for Starcraft 2 maps. the goal was to create something similar to [SC2MapAnalysis](https://github.com/spudde123/SC2MapAnalysis) but focused on segmentation of map into smaller pieces (what SC2MapAnalysis doesn't have) and finding passages between them, like choke points, ramps, etc. It has also implemented basic pathfinding algorithm - Dijkstra.
+**SC2 Map Segmentation** provides fully automated segmentation for Starcraft 2 maps. The goal is to offer functionality similar to [SC2MapAnalysis](https://github.com/spudde123/SC2MapAnalysis), but with a focus on dividing the map into smaller regions. This is a feature not currently available in SC2MapAnalysis. Additionally, SC2 Map Segmentation identifies passages between these regions, such as choke points and ramps. It also includes a basic implementation of the Dijkstra pathfinding algorithm.
 
-It's still in development, has much less features than SC2MapAnalysis.
+Please note that this project is still under development and may not have as many features as SC2MapAnalysis at this time.
+
 ### Example of segmentation
 ![SiteDeltaAIE segmentation](data/map_pool/SiteDeltaAIE.png)
 Top view of the map: https://liquipedia.net/commons/images/7/77/Site_Delta.jpg
@@ -28,19 +29,20 @@ Finally, the map undergoes a cleanup process. This includes steps such as removi
 3. Copy `mapsegmentation` folder to your project
 
 ## Usage
-The example of usage is in [examples/reaper_pathfinding.py](examples\reaper_pathfinding.py). It's simple bot which finds path for reaper to enemy base using Dijkstra algorithm.
+An example of usage can be found in [examples/reaper_pathfinding.py](examples/reaper_pathfinding.py). This is a simple bot that finds a path to the enemy base for a Reaper unit using the Dijkstra algorithm.
 
-The segmented map can be pickled and saved to file.
+The segmented map can be serialized using pickle and saved to a file for future use.
 
-There are three main dataclasses to reprezent segmented map and can be find in [mapsegmentation/dataclasses](mapsegmentation\dataclasses) folder:
-- `SegmentedMap` - contains all segments and passages between them
-- `Region` - represents one segment of map
-- `Passage` - represents one passage between regions
+There are three main data classes that represent the segmented map, which can be found in the [mapsegmentation/dataclasses](mapsegmentation/dataclasses) folder:
+- `SegmentedMap`: Contains all segments and passages between them.
+- `Region`: Represents a single segment of the map.
+- `Passage`: Represents a passage between regions.
 
 
-## Limitations / TODO / Contribution
-- There are still issues with segmentation, like the segmented regions aren't simetrical on both sides.
-- It doesn't find cliff passages in places where e.g. reaper need to jump twice to get to the other side.
-- There aren't much features implemented yet, like in MapAnalysis.
+## Limitations, Future Work, and Contributions
 
-If you want to contribute, feel free to create pull request. I will be happy for any help, because I don't have much time to work on this project.
+- The current segmentation algorithm may produce asymmetrical regions.
+- The algorithm does not yet identify cliff passages where units, like Reapers, need to jump multiple times to traverse.
+- The feature set is not as extensive as that of MapAnalysis.
+
+Contributions are welcome and greatly appreciated. If you're interested in contributing, please feel free to submit a pull request. Any help is valuable as my time to work on this project is limited.
