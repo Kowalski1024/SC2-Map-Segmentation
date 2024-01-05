@@ -1,6 +1,7 @@
 from collections import Counter
 from typing import Iterable, Any
 
+import time
 import numpy as np
 from loguru import logger
 from skimage.draw import line
@@ -63,8 +64,11 @@ def map_segmentation(
                     filter_angle=region_config.get("filter_angle", np.pi * 0.6),
                 )
 
-    # -------------------------------------------------------------
+    # ---------------------------- #
+
     logger.info("Starting map segmentation")
+    start = time.time()
+
     config = get_config(bot.game_info.map_name, configs_path)
     map_center = bot.game_info.map_center
 
@@ -146,7 +150,11 @@ def map_segmentation(
         config=config,
     )
 
+    logger.info("Updating passability")
+    segmented_map.update_passability(bot.destructables, bot.mineral_field)
+
     logger.info("Map segmentation complete")
+    logger.info(f"Time taken: {time.time() - start:.2f}s")
     return segmented_map
 
 
