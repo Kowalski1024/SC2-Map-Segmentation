@@ -6,7 +6,7 @@ from typing import Optional
 import numpy as np
 
 from MapSegmentation.algorithms import flood_fill
-from MapSegmentation.utils.destructables import change_destructable_status_in_grid
+from MapSegmentation.utils.destructables import change_destructable_status
 from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.units import Units
@@ -113,13 +113,13 @@ class SegmentedMap:
             # prepare pathing grid
             pathing_grid = self.game_info.pathing_grid.data_numpy.copy().T
             for unit in chain(destructables, minerals):
-                change_destructable_status_in_grid(pathing_grid, unit, False)
+                change_destructable_status(pathing_grid, unit, False)
 
             # flood fill from a random point in the passage
             surrounding_tiles = passage.surrounding_tiles
             random_point = next(iter(surrounding_tiles))
             tiles = frozenset.union(passage.tiles, surrounding_tiles)
-            filled = flood_fill(random_point, lambda p: p in tiles and pathing_grid[p])
+            filled = flood_fill(random_point, lambda p, tiles=tiles, pathing_grid=pathing_grid: p in tiles and pathing_grid[p])
 
             # if surrounding_tiles is subset of flood, passage is passable
             if surrounding_tiles.issubset(filled):

@@ -1,7 +1,7 @@
-from collections import Counter
-from typing import Iterable, Any
-
 import time
+from collections import Counter
+from typing import Any, Iterable
+
 import numpy as np
 from loguru import logger
 from skimage.draw import line
@@ -33,14 +33,14 @@ EMPTY_REGION_INDEX = 0
 
 
 def map_segmentation(
-    bot: BotAIInternal, configs_path: str = "MapSegmentation\configs"
+    bot: BotAIInternal, configs_path: str = "MapSegmentation/configs"
 ) -> SegmentedMap:
     """
     Performs map segmentation based on the given bot and configuration path.
 
     Args:
         bot (BotAIInternal): The bot object containing game information.
-        configs_path (str, optional): The path to the configuration files. Defaults to "MapSegmentation\configs".
+        configs_path (str, optional): The path to the configuration files. Defaults to "MapSegmentation/configs".
 
     Returns:
         SegmentedMap: The segmented map object containing regions, passages, and other information.
@@ -377,6 +377,7 @@ def propagate_region(
         max_distance (int, optional): The maximum distance to scan for unbuildable points. Defaults to 25.
         filter_angle (float, optional): The angle used to filter obtuse points. Defaults to np.pi * 0.6.
     """
+
     def find_chokes(points: list[Point2]) -> list[tuple[np.ndarray, np.ndarray]]:
         """Finds the choke points in a list of points"""
         return [
@@ -418,7 +419,6 @@ def propagate_region(
         counterclockwise=counterclockwise,
     )
     depth_points_list = filter_obtuse_points(depth_points_raw, location, filter_angle)
-    depth_points_list = [point for point in depth_points_list]
 
     # find the choke points and add them to the grid
     chokes = find_chokes(depth_points_list)

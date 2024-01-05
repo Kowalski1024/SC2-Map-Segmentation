@@ -1,6 +1,6 @@
 from collections import defaultdict
 from queue import PriorityQueue
-from typing import Callable, Any
+from typing import Any, Callable
 
 from sc2.position import Point2
 
@@ -13,7 +13,7 @@ def default_cost_func(
     current: Point2, neighbor: Point2, costs: dict[Point2, float] = None
 ) -> float:
     """
-    Calculates the default cost between two points in a path. 
+    Calculates the default cost between two points in a path.
     The cost is the distance between the points plus the cost of the neighbor.
 
     Args:
@@ -53,40 +53,41 @@ class Djikstra:
         self.mapping = {passage.center(): passage for passage in map.passages}
 
     def _neighbors(
-            self, point: Point2, end: Point2, avoid: tuple[type[Passage]]
-        ) -> list[Point2]:
-            """
-            Returns a list of neighboring points from the given point.
+        self, point: Point2, end: Point2, avoid: tuple[type[Passage]]
+    ) -> list[Point2]:
+        """
+        Returns a list of neighboring points from the given point.
 
-            Args:
-                point (Point2): The starting point.
-                end (Point2): The end point.
-                avoid (tuple[type[Passage]]): A tuple of passage types to avoid.
+        Args:
+            point (Point2): The starting point.
+            end (Point2): The end point.
+            avoid (tuple[type[Passage]]): A tuple of passage types to avoid.
 
-            Returns:
-                list[Point2]: A list of neighboring points.
-            """
-            passage = self.mapping[point]
-            neighbors = []
+        Returns:
+            list[Point2]: A list of neighboring points.
+        """
+        passage = self.mapping[point]
+        neighbors = []
 
-            for region in passage.connections:
-                region = self.map.regions[region]
+        for region in passage.connections:
+            region = self.map.regions[region]
 
-                if self._closest_region(end) is region:
-                    neighbors.append(end)
+            if self._closest_region(end) is region:
+                neighbors.append(end)
+                continue
+
+            for next_passage in region.passages:
+                if (
+                    next_passage is passage
+                    or not next_passage.passable
+                    or avoid
+                    and isinstance(next_passage, avoid)
+                ):
                     continue
 
-                for next_passage in region.passages:
-                    if (
-                        next_passage is passage 
-                        or not next_passage.passable
-                        or avoid and isinstance(next_passage, avoid)
-                    ):
-                        continue
+                neighbors.append(next_passage.center())
 
-                    neighbors.append(next_passage.center())
-
-            return neighbors
+        return neighbors
 
     def _closest_region(self, point: Point2) -> Region:
         """
@@ -110,7 +111,7 @@ class Djikstra:
                 if region := self.map.region_at(neighbor):
                     return region
 
-    def __call__(
+    def __call__(  # noqa: C901
         self,
         start: Point2,
         end: Point2,
@@ -149,13 +150,9 @@ class Djikstra:
         distances: dict[Point2, float] = defaultdict(lambda: float("inf"))
         distances[start] = 0
 
-
         # for each passage in the start region, calculate the distance to the passage center and add it to the queue
         for passage in start_region.passages:
-            if (
-                not passage.passable 
-                or avoid and isinstance(passage, avoid)
-            ):
+            if not passage.passable or avoid and isinstance(passage, avoid):
                 continue
 
             distance = start.distance_to(passage.center())

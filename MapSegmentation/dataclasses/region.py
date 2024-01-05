@@ -1,13 +1,14 @@
-from typing import Optional, NamedTuple
+from typing import NamedTuple, Optional
+
 import numpy as np
 
-from sc2.position import Point2, Point3
+from MapSegmentation.utils.debug_utils import GREEN, WHITE
+from MapSegmentation.utils.misc_utils import get_terrain_z_height
 from sc2.client import Client
 from sc2.game_info import GameInfo
+from sc2.position import Point2, Point3
 
 from .passage import Passage
-from MapSegmentation.utils.misc_utils import get_terrain_z_height
-from MapSegmentation.utils.debug_utils import WHITE, GREEN
 
 
 class Region(NamedTuple):
@@ -18,7 +19,7 @@ class Region(NamedTuple):
         id (int): The unique identifier of the region.
         indices (tuple[np.ndarray, np.ndarray]): The indices of the tiles that belong to the region.
         passages (tuple[Passage]): The passages that connect the region to other regions.
-        
+
         base_location (Optional[Point2]): The base location associated with the region (if any).
         watch_tower (Optional[Point2]): The watch tower location associated with the region (if any).
         vision_blockers (tuple[Point2, ...]): The vision blockers within the region.
@@ -30,7 +31,7 @@ class Region(NamedTuple):
 
     base_location: Optional[Point2] = None
     watch_tower: Optional[Point2] = None
-    vision_blockers: tuple[Point2, ...] = tuple()
+    vision_blockers: tuple[Point2, ...] = ()
 
     def center(self) -> Point2:
         """

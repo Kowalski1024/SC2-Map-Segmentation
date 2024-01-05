@@ -8,7 +8,7 @@ from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.unit import Unit
 
-from .destructables import change_destructable_status_in_grid
+from .destructables import change_destructable_status
 
 GROUND_HEIGHT = (175, 191, 207)
 FOUR_DIRECTIONS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -20,7 +20,7 @@ OUTER_RING_5X5 = [
 
 def get_config(
     map_name: str,
-    configs_path: str = "MapSegmentation\configs",
+    configs_path: str = "MapSegmentation/configs",
     default: str = "default.json",
 ) -> dict[str, Any]:
     """
@@ -28,7 +28,7 @@ def get_config(
 
     Args:
         map_name (str): The name of the map.
-        configs_path (str, optional): The path to the configuration files. Defaults to "MapSegmentation\configs".
+        configs_path (str, optional): The path to the configuration files. Defaults to "MapSegmentation/configs".
         default (str, optional): The default configuration file. Defaults to "default.json".
 
     Returns:
@@ -129,8 +129,8 @@ def mark_unbuildable_tiles(
 
     # Add destructables and minerals to pathing grid and remove from placement grid
     for unit in chain(destructables, minerals):
-        change_destructable_status_in_grid(pathing_grid, unit, 1)
-        change_destructable_status_in_grid(placement_grid, unit, 0)
+        change_destructable_status(pathing_grid, unit, 1)
+        change_destructable_status(placement_grid, unit, 0)
 
     # Add vision blockers to pathing grid
     for x, y in vision_blockers:

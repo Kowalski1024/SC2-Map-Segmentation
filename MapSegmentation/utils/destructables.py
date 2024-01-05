@@ -4,7 +4,7 @@ from sc2.ids.unit_typeid import UnitTypeId
 from sc2.unit import Unit
 
 
-def change_destructable_status_in_grid(
+def change_destructable_status(  # noqa: C901
     grid: np.ndarray, unit: Unit, status: int
 ) -> None:
     """

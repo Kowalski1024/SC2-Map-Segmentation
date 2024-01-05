@@ -70,15 +70,17 @@ def mirror_points_across_line(
     line_normal = normal(line_direction).round(3)
     line_midpoint = (line_start + line_end) / 2
 
-    middle_points = filter_points(points_to_mirror, line_midpoint, line_normal, "middle")
-    points_to_mirror = filter_points(
-        points_to_mirror, line_midpoint, line_normal, side
+    middle_points = filter_points(
+        points_to_mirror, line_midpoint, line_normal, "middle"
     )
+    points_to_mirror = filter_points(points_to_mirror, line_midpoint, line_normal, side)
 
     if by_midpoint:
-        mirrored_points = 2*line_midpoint - points_to_mirror
+        mirrored_points = 2 * line_midpoint - points_to_mirror
     else:
-        mirrored_points = points_to_mirror - 2 * np.outer(np.dot(points_to_mirror - line_midpoint, line_normal), line_normal)
+        mirrored_points = points_to_mirror - 2 * np.outer(
+            np.dot(points_to_mirror - line_midpoint, line_normal), line_normal
+        )
 
     return points_to_mirror, mirrored_points.round(1), middle_points.round(1)
 
