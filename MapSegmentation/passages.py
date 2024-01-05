@@ -68,7 +68,7 @@ def find_passages(
 
     # remove ramps from grid
     for ramp in ramps:
-        grid[ramp.tiles_indices()] = 0
+        grid[ramp.tiles_indices] = 0
 
     # find all chokes
     choke_tiles = flood_fill_all(
@@ -170,7 +170,7 @@ def find_passages_between_regions(
 
     # create passages
     for group in group_connected_points(connections_set, get_neighbors=get_neighbors4):
-        unique_tiles = set(segmented_grid[point] for point in group)
+        unique_tiles = {segmented_grid[point] for point in group}
         if len(unique_tiles) > 1:
             passages.append(
                 create_passage(

@@ -92,7 +92,7 @@ def map_segmentation(
 
     for passage in passages:
         if isinstance(passage, ChokePoint):
-            indices = passage.tiles_indices()
+            indices = passage.tiles_indices
             segmentation_grid[indices] = 0
             scaning_grid[indices] = 0
 
@@ -113,10 +113,10 @@ def map_segmentation(
         region_config = config["propagations"][name]
 
         if not region_config["enabled"]:
-            logger.info(f"Skipping {name}")
+            logger.debug(f"Skipping {name}")
             continue
 
-        logger.info(f"Propagating {name}")
+        logger.debug(f"Propagating {name}")
 
         if region_config.get("mirror", False):
             points = mirror_points(
@@ -128,15 +128,15 @@ def map_segmentation(
 
         propagete(points, region_config)
 
-    logger.info("Clearing and relabeling the grid")
+    logger.debug("Clearing and relabeling the grid")
     clear_and_relabel_grid(segmentation_grid)
 
-    logger.info("Finding additional passages")
+    logger.debug("Finding additional passages")
     passages += find_cliff_passages(bot.game_info, passages)
     passages += find_passages_between_regions(segmentation_grid, bot.game_info)
     passages = update_passage_connections(passages, segmentation_grid)
 
-    logger.info("Creating regions")
+    logger.debug("Creating regions")
     regions = create_regions(bot, segmentation_grid, passages)
 
     # create the segmented map
@@ -150,11 +150,10 @@ def map_segmentation(
         config=config,
     )
 
-    logger.info("Updating passability")
+    logger.debug("Updating passability")
     segmented_map.update_passability(bot.destructables, bot.mineral_field)
 
-    logger.info("Map segmentation complete")
-    logger.info(f"Time taken: {time.time() - start:.2f}s")
+    logger.info(f"Map segmentation finished in {time.time() - start:.2f}s")
     return segmented_map
 
 

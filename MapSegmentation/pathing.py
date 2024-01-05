@@ -50,7 +50,7 @@ class Djikstra:
         self.map = map
         self.cost_func = cost_func
 
-        self.mapping = {passage.center(): passage for passage in map.passages}
+        self.mapping = {passage.center: passage for passage in map.passages}
 
     def _neighbors(
         self, point: Point2, end: Point2, avoid: tuple[type[Passage]]
@@ -85,7 +85,7 @@ class Djikstra:
                 ):
                     continue
 
-                neighbors.append(next_passage.center())
+                neighbors.append(next_passage.center)
 
         return neighbors
 
@@ -155,10 +155,10 @@ class Djikstra:
             if not passage.passable or avoid and isinstance(passage, avoid):
                 continue
 
-            distance = start.distance_to(passage.center())
-            queue.put((distance, passage.center()))
-            previous[passage.center()] = start
-            distances[passage.center()] = distance
+            distance = start.distance_to(passage.center)
+            queue.put((distance, passage.center))
+            previous[passage.center] = start
+            distances[passage.center] = distance
 
         # while the queue is not empty, get the next point from the queue
         while not queue.empty():

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Iterable, Optional
 
 import numpy as np
@@ -39,6 +40,7 @@ class Passage:
 
     passable: bool = False
 
+    @cached_property
     def center(self) -> Point2:
         """
         Calculates the center point of the passage.
@@ -49,6 +51,7 @@ class Passage:
         points = self.tiles if self.tiles else self.surrounding_tiles
         return Point2.center(points)
 
+    @cached_property
     def tiles_indices(self) -> tuple[np.array, np.array]:
         """
         Returns the x and y indices of the tiles in the passage.
@@ -59,6 +62,7 @@ class Passage:
         x, y = zip(*self.tiles)
         return np.array(x), np.array(y)
 
+    @cached_property
     def surrounding_tiles_indices(self) -> tuple[np.array, np.array]:
         """
         Returns the indices of the surrounding tiles as numpy arrays.
@@ -88,7 +92,7 @@ class Passage:
             return side_center + vector * distance_multiplier
 
         locations = []
-        center = self.center()
+        center = self.center
 
         if self.connections and len(self.connections) > 1:
             for points in self.connections.values():
@@ -106,7 +110,7 @@ class Passage:
     def __str__(self) -> str:
         return (
             f"{self.__class__.__name__}("
-            f"center={self.center()}, "
+            f"center={self.center}, "
             f"connections_keys={self.connections.keys()}, "
             f"passable={self.passable})"
         )
@@ -114,7 +118,7 @@ class Passage:
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
-            f"center={self.center()}, "
+            f"center={self.center}, "
             f"connections_keys={self.connections.keys()}, "
             f"surrounding_length={len(self.surrounding_tiles)}, "
             f"tiles_length={len(self.tiles)}, "
@@ -140,7 +144,7 @@ class Passage:
 
         self.draw_surrounding_regions(game_info, client, height_offset)
 
-        center = self.center()
+        center = self.center
         center = Point3((center.x, center.y, get_terrain_z_height(game_info, center)))
         client.debug_sphere_out(center, r=1, color=debug.WHITE)
         client.debug_text_world(

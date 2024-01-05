@@ -1,4 +1,6 @@
-from typing import NamedTuple, Optional
+from dataclasses import dataclass
+from functools import cached_property
+from typing import Optional
 
 import numpy as np
 
@@ -11,7 +13,8 @@ from sc2.position import Point2, Point3
 from .passage import Passage
 
 
-class Region(NamedTuple):
+@dataclass
+class Region:
     """
     Represents a region in the map.
 
@@ -33,6 +36,7 @@ class Region(NamedTuple):
     watch_tower: Optional[Point2] = None
     vision_blockers: tuple[Point2, ...] = ()
 
+    @cached_property
     def center(self) -> Point2:
         """
         Calculates the center point of the region.
@@ -43,6 +47,7 @@ class Region(NamedTuple):
         x, y = self.indices[0].mean(), self.indices[1].mean()
         return Point2((x, y))
 
+    @cached_property
     def tiles(self) -> set[Point2]:
         """
         Returns a set of Point2 objects representing the tiles in the region.
@@ -60,7 +65,7 @@ class Region(NamedTuple):
             client (Client): The client used to interact with the game.
             height_offset (float, optional): Offset to adjust the height of the center. Defaults to 0.
         """
-        center = self.center()
+        center = self.center
         height = get_terrain_z_height(game_info, center)
         client.debug_sphere_out(
             Point3((center.x + 0.5, center.y + 0.5, height + height_offset)),
