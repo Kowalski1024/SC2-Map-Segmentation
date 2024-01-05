@@ -8,7 +8,6 @@ from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.unit import Unit
 
-from . import Point
 from .destructables import change_destructable_status_in_grid
 
 GROUND_HEIGHT = (175, 191, 207)
@@ -24,6 +23,20 @@ def get_config(
     configs_path: str = "MapSegmentation\configs",
     default: str = "default.json",
 ) -> dict[str, Any]:
+    """
+    Retrieve the configuration for a specific map.
+
+    Args:
+        map_name (str): The name of the map.
+        configs_path (str, optional): The path to the configuration files. Defaults to "MapSegmentation\configs".
+        default (str, optional): The default configuration file. Defaults to "default.json".
+
+    Returns:
+        dict[str, Any]: The configuration for the specified map.
+
+    Raises:
+        FileNotFoundError: If the configuration file for the specified map or the default configuration file is not found.
+    """
     try:
         with open(f"{configs_path}/{map_name}.json") as f:
             return json.load(f)
@@ -46,7 +59,7 @@ def get_terrain_z_height(game_info: GameInfo, posistion: Point2) -> float:
     return -16 + 32 * game_info.terrain_height[posistion.rounded] / 255
 
 
-def get_neighbors4(point: Point) -> list[Point]:
+def get_neighbors4(point: Point2) -> list[Point2]:
     """
     Returns the 4 neighbors of a point in a grid
 
@@ -56,12 +69,11 @@ def get_neighbors4(point: Point) -> list[Point]:
     Returns:
         list[Point]: The neighbors of the point
     """
-    _type = type(point)
     x, y = point
-    return [_type((x + dx, y + dy)) for dx, dy in FOUR_DIRECTIONS]
+    return [Point2((x + dx, y + dy)) for dx, dy in FOUR_DIRECTIONS]
 
 
-def get_neighbors8(point: Point) -> list[Point]:
+def get_neighbors8(point: Point2) -> list[Point2]:
     """
     Returns the 8 neighbors of a point in a grid
 
@@ -71,24 +83,22 @@ def get_neighbors8(point: Point) -> list[Point]:
     Returns:
         list[Point]: The neighbors of the point
     """
-    _type = type(point)
     x, y = point
-    return [_type(x + dx, y + dy) for dx, dy in EIGHT_DIRECTIONS]
+    return [Point2((x + dx, y + dy)) for dx, dy in EIGHT_DIRECTIONS]
 
 
-def get_neighbors5x5_outer(point: Point) -> list[Point]:
+def get_neighbors5x5_outer(point: Point2) -> list[Point2]:
     """
     Returns the 5x5 outer neighbors of a point in a grid
 
     Args:
-        point (Point): The point to get the neighbors of
+        point (Point2): The point to get the neighbors of
 
     Returns:
-        list[Point]: The neighbors of the point
+        list[Point2]: The neighbors of the point
     """
-    _type = type(point)
     x, y = point
-    return [_type(x + dx, y + dy) for dx, dy in OUTER_RING_5X5]
+    return [Point2((x + dx, y + dy)) for dx, dy in OUTER_RING_5X5]
 
 
 def mark_unbuildable_tiles(

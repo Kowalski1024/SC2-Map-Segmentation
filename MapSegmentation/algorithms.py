@@ -6,7 +6,6 @@ import numpy as np
 
 from sc2.position import Point2
 
-from .utils import Point, TuplePoint
 from .utils.data_structures import FindUnion
 from .utils.misc_utils import get_neighbors8
 
@@ -15,14 +14,16 @@ def pathable_height_grid(
     terrain_height: np.ndarray, placement_grid: np.ndarray
 ) -> np.ndarray:
     """
-    Returns a grid of the height of the pathable tiles
+    Generates a height grid where only the pathable tiles have their height value,
+    while non-pathable tiles have a height of 0. Also fixes in some cases where
+    the height grid is not consistent with the placement grid.
 
     Args:
-        terrain_height (np.ndarray): terrain height grid
-        placement_grid (np.ndarray): placement grid
+        terrain_height (np.ndarray): The original terrain height grid.
+        placement_grid (np.ndarray): The placement grid indicating pathable and non-pathable tiles.
 
     Returns:
-        np.ndarray: height grid
+        np.ndarray: The height grid with only pathable tiles having their height value.
     """
     height_grid = terrain_height.copy()
     pathing_grid = placement_grid
@@ -44,23 +45,24 @@ def pathable_height_grid(
 
 
 def flood_fill(
-    start: Point,
-    is_accessible: Callable[[Point], bool],
-    get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
-) -> set[Point]:
+    start: Point2,
+    is_accessible: Callable[[Point2], bool],
+    get_neighbors: Callable[[Point2], list[Point2]] = get_neighbors8,
+) -> set[Point2]:
     """
-    Finds all accessible areas in a grid starting at a point
+    Perform flood fill algorithm starting from the given point.
 
     Args:
-        start (Point): The point to start the search at
-        is_accessible (Callable[[Point], bool]): The function to determine if a point is accessible
-        get_neighbors (Callable[[Point], list[Point]], optional): The function to get the neighbors of a point
+        start (Point2): The starting point for flood fill.
+        is_accessible (Callable[[Point2], bool]): A function that determines if a point is accessible.
+        get_neighbors (Callable[[Point2], list[Point2]]): A function that returns the neighboring points of a given point. Defaults to get_neighbors8.
 
     Returns:
-        set[Point]: The accessible areas
+        set[Point2]: A set of points that are part of the flood fill.
+
     """
-    seen: set[Point] = set()
-    queue: deque[Point] = deque([start])
+    seen: set[Point2] = set()
+    queue: deque[Point2] = deque([start])
 
     while queue:
         point = queue.pop()
@@ -79,27 +81,27 @@ def flood_fill(
 
 def flood_fill_all(
     grid_shape: tuple[int, int],
-    is_accessible: Callable[[Point], bool],
-    get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
-) -> list[set[TuplePoint]]:
+    is_accessible: Callable[[Point2], bool],
+    get_neighbors: Callable[[Point2], list[Point2]] = get_neighbors8,
+) -> list[set[Point2]]:
     """
-    Finds all accessible areas in a grid
+    Performs flood fill algorithm on a grid to find all connected groups of accessible points.
 
     Args:
-        grid_shape (tuple[int, int]): The shape of the grid
-        is_accessible (Callable[[Point], bool]): The function to determine if a point is accessible
-        get_neighbors (Callable[[Point], list[Point]], optional): The function to get the neighbors of a point
+        grid_shape (tuple[int, int]): The shape of the grid (width, height).
+        is_accessible (Callable[[Point2], bool]): A function that determines if a point is accessible.
+        get_neighbors (Callable[[Point2], list[Point2]], optional): A function that returns the neighbors of a point. Defaults to get_neighbors8.
 
     Returns:
-        list[set[Point]]: The accessible areas
+        list[set[Point2]]: A list of sets, where each set represents a group of connected points.
     """
-    groups: list[set[Point]] = []
-    seen: set[Point] = set()
+    groups: list[set[Point2]] = []
+    seen: set[Point2] = set()
     width, height = grid_shape
 
     for x in range(width):
         for y in range(height):
-            point = TuplePoint(x, y)
+            point = Point2((x, y))
 
             if point in seen or not is_accessible(point):
                 continue
@@ -112,24 +114,23 @@ def flood_fill_all(
 
 
 def find_surrounding(
-    group: Iterable[Point],
-    is_accessible: Callable[[Point], bool],
-    get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
-) -> set[Point]:
+    group: Iterable[Point2],
+    is_accessible: Callable[[Point2], bool],
+    get_neighbors: Callable[[Point2], list[Point2]] = get_neighbors8,
+) -> set[Point2]:
     """
-    Finds the accessible surrounding of a group of points
+    Finds the surrounding points of a given group of points.
 
     Args:
-        group (Iterable[Point]): The group of points
-        grid (np.ndarray): The grid to search
-        is_accessible (Callable[[Point], bool]): The function to determine if a point is accessible
-        get_neighbors (Callable[[Point], list[Point]], optional): The function to get the neighbors of a point
+        group (Iterable[Point2]): The group of points.
+        is_accessible (Callable[[Point2], bool]): A function that determines if a point is accessible.
+        get_neighbors (Callable[[Point2], list[Point2]], optional): A function that returns the neighbors of a point. Defaults to get_neighbors8.
 
     Returns:
-        set[Point]: The accessible surrounding of the group
+        set[Point2]: The set of surrounding points.
     """
-    surrounding: set[Point] = set()
-    group_set: set[Point] = set(group)
+    surrounding: set[Point2] = set()
+    group_set: set[Point2] = set(group)
 
     for current in group:
         for point in get_neighbors(current):
@@ -145,18 +146,18 @@ def find_surrounding(
 
 
 def group_connected_points(
-    points: Iterable[Point],
-    get_neighbors: Callable[[Point], list[Point]] = get_neighbors8,
-) -> list[set[Point]]:
+    points: Iterable[Point2],
+    get_neighbors: Callable[[Point2], list[Point2]] = get_neighbors8,
+) -> list[set[Point2]]:
     """
-    Groups points together by finding the connected components of the graph.
+    Groups connected points together using the find-union algorithm.
 
     Args:
-        points (Iterable[Point]): The points to group
-        get_neighbors (Callable[[Point], list[Point]]): The function to get the neighbors of a point
+        points (Iterable[Point2]): The points to be grouped.
+        get_neighbors (Callable[[Point2], list[Point2]], optional): A function that returns the neighbors of a given point. Defaults to get_neighbors8.
 
     Returns:
-        list[set[Point]]: list of groups of points
+        list[set[Point2]]: A list of sets, where each set contains the connected points.
     """
     find_union = FindUnion(points)
     points_set = set(points)
@@ -231,18 +232,18 @@ def scan_unbuildable_points(
     counterclockwise: bool = True,
 ) -> list[Point2]:
     """
-    Scans the map in a circle around the location and returns the first point that is not buildable
+    Scans the unbuildable points around a given location on the grid.
 
     Args:
-        location (Point2): location to start the scan
-        grid (np.ndarray): grid to scan, 0 value is not buildable
-        map_center (Point2): center of the map
-        step (int, optional): step size in degrees
-        max_distance (int, optional): maximum distance to scan
-        counterclockwise (bool, optional): direction to scan
+        location (Point2): The location to scan around.
+        grid (np.ndarray): The grid representing the map.
+        map_center (Point2): The center of the map.
+        step (int, optional): The step size for scanning in degrees. Defaults to 1.
+        max_distance (int, optional): The maximum distance to scan from the location. Defaults to 25.
+        counterclockwise (bool, optional): Whether to scan in counterclockwise direction. Defaults to True.
 
     Returns:
-        list[Point2]: list of points that are not buildable
+        list[Point2]: A list of unbuildable points found during the scan.
     """
 
     def rotation_matrix(degrees):
@@ -282,18 +283,18 @@ def scan_unbuildable_direction(
     location: Point2, direction: np.ndarray, grid: np.ndarray, max_distance: int
 ) -> tuple[Point2, int]:
     """
-    Scans the map in a certain direction until it finds a non-buildable point
+    Scans in a given direction from a specified location on a grid to find the first unbuildable point.
 
     Args:
-        location (Point2): location to start the scan
-        direction (np.ndarray): direction to scan
-        grid (np.ndarray): grid to scan, 0 value is not buildable
-        max_distance (int): maximum distance to scan
+        location (Point2): The starting location for the scan.
+        direction (np.ndarray): The direction vector to scan in.
+        grid (np.ndarray): The grid representing the buildability of points.
+        max_distance (int): The maximum distance to scan.
 
     Returns:
-        tuple[Point2, int]: first non-buildable point and the distance to it
+        tuple[Point2, int]: A tuple containing the first unbuildable point found and its distance from the starting location.
+                           If no unbuildable point is found within the maximum distance, returns (None, max_distance).
     """
-
     for distance in range(1, max_distance):
         # get the point at the distance
         point = location + Point2(

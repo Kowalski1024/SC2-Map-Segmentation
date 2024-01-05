@@ -1,17 +1,36 @@
-from typing import NamedTuple, Optional
+import pickle
+from dataclasses import dataclass
+from itertools import chain
+from typing import Optional
 
 import numpy as np
 
+from MapSegmentation.algorithms import flood_fill
+from MapSegmentation.utils.destructables import change_destructable_status_in_grid
 from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.units import Units
 
-from .region import Region
 from .passage import Passage
-from MapSegmentation.algorithms import flood_fill
+from .region import Region
 
 
-class SegmentedMap(NamedTuple):
+@dataclass
+class SegmentedMap:
+    """
+    Represents a segmented map.
+
+    Attributes:
+        name (str): The name of the map
+        regions_grid (np.ndarray): The grid representing the regions of the map.
+        regions (dict[int, Region]): A dictionary mapping region IDs to Region objects.
+        passages (tuple[Passage]): A tuple of Passage objects.
+        base_locations (tuple[Point2, ...]): A tuple of base locations.
+
+        game_info (GameInfo): The game information.
+        config (dict[str, int]): A dictionary containing configuration settings.
+    """
+
     name: str
     regions_grid: np.ndarray
     regions: dict[int, Region]
@@ -22,23 +41,87 @@ class SegmentedMap(NamedTuple):
     config: dict[str, int]
 
     def region_at(self, point: Point2) -> Optional[Region]:
+        """
+        Returns the region at the given point.
+
+        Args:
+            point (Point2): The point to check.
+
+        Returns:
+            Optional[Region]: The region at the given point, or None if no region is found.
+        """
         point = point.rounded
         try:
             return self.regions[self.regions_grid[point]]
         except KeyError:
             return None
-        
-    def update_passability(self, destructables: Units, minerals: Units):
-        destructables = {d.tag for d in destructables}
-        minerals = {m.tag for m in minerals}
 
+    def save(self, path: str) -> None:
+        """
+        Saves the segmented map to a file.
+
+        Args:
+            path (str): The path to the file.
+        """
+        self.game_info = None
+        with open(path, "wb") as f:
+            pickle.dump(self, f)
+
+    @staticmethod
+    def load(path: str, game_info: GameInfo) -> "SegmentedMap":
+        """
+        Loads a segmented map from a file.
+
+        Args:
+            path (str): The path to the file.
+            game_info (GameInfo): The game information.
+
+        Returns:
+            SegmentedMap: The loaded segmented map.
+        """
+        with open(path, "rb") as f:
+            segmented_map = pickle.load(f)
+        segmented_map.game_info = game_info
+        return segmented_map
+
+    def update_passability(self, destructables: Units, minerals: Units) -> None:
+        """
+        Updates the passability of the map passages based on the presence of destructibles and minerals.
+
+        Args:
+            destructables (Units): A collection of destructible units.
+            minerals (Units): A collection of mineral units.
+        """
         for passage in self.passages:
-            passage.destructables.intersection_update(destructables)
-            passage.minerals.intersection_update(minerals)
+            if len(passage.destructables) == 0 and len(passage.minerals) == 0:
+                passage.passable = True
+                continue
+
+            # update destructables and minerals
+            passage.destructables.intersection_update(
+                {d.position for d in destructables}
+            )
+            passage.minerals.intersection_update({m.position for m in minerals})
+
+            if passage.passable:
+                continue
 
             if len(passage.destructables) == 0 and len(passage.minerals) == 0:
                 passage.passable = True
-            else:
-                titles = set.union(passage.tiles, passage.surrounding_tiles)
-                random_point = next(iter(passage.surrounding_tiles))
-                
+                continue
+
+            # prepare pathing grid
+            pathing_grid = self.game_info.pathing_grid.data_numpy.copy().T
+            for unit in chain(destructables, minerals):
+                change_destructable_status_in_grid(pathing_grid, unit, False)
+
+            # flood fill from a random point in the passage
+            surrounding_tiles = passage.surrounding_tiles
+            random_point = next(iter(surrounding_tiles))
+            tiles = frozenset.union(passage.tiles, surrounding_tiles)
+            filled = flood_fill(random_point, lambda p: p in tiles and pathing_grid[p])
+
+            # if surrounding_tiles is subset of flood, passage is passable
+            if surrounding_tiles.issubset(filled):
+                passage.passable = True
+                continue

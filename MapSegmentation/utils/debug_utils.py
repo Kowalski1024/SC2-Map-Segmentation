@@ -17,17 +17,17 @@ def draw_point(
     height_offset: int,
     color: tuple[int, int, int] = WHITE,
     text: str = "",
-):
+) -> None:
     """
-    Draws a point on the map
+    Draws a point on the game map with a specified color and optional text.
 
-    Args:
-        game_info (GameInfo): The game info of the map
-        client (Client): The client to draw the point with
-        point (Point2): The point to draw
-        height_offset (int): The height offset of the point
-        color (tuple[int, int, int], optional): The color of the point
-        text (str, optional): The text to draw
+    Parameters:
+        game_info (GameInfo): The game information.
+        client (Client): The client object for debugging.
+        point (Point2): The point to draw on the map.
+        height_offset (int): The offset to adjust the height of the point.
+        color (tuple[int, int, int], optional): The color of the point. Defaults to WHITE.
+        text (str, optional): The text to display near the point. Defaults to "".
     """
     height = get_terrain_z_height(game_info, point)
 

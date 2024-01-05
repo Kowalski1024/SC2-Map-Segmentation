@@ -1,6 +1,6 @@
 import numpy as np
 
-from .utils import Point
+from sc2.position import Point2
 
 
 def direction(line_start: np.ndarray, line_end: np.ndarray) -> np.ndarray:
@@ -17,7 +17,19 @@ def normal(direction: np.ndarray) -> np.ndarray:
 def filter_points(
     points: np.ndarray, midpoint: np.ndarray, normal: np.ndarray, side: str
 ) -> np.ndarray:
-    """Filter points based on the side argument."""
+    """
+    Filters the given points based on their position relative to a plane defined by a midpoint and normal vector.
+
+    Args:
+        points (np.ndarray): The array of points to be filtered.
+        midpoint (np.ndarray): The midpoint of the plane.
+        normal (np.ndarray): The normal vector of the plane.
+        side (str): The side of the plane to filter the points. Can be "left", "right", "middle", or any other value.
+
+    Returns:
+        np.ndarray: The filtered array of points.
+
+    """
     dot_product = np.dot(points - midpoint, normal).round(3)
     if side == "left":
         return points[dot_product < 0]
@@ -30,9 +42,9 @@ def filter_points(
 
 
 def mirror_points_across_line(
-    points_to_mirror: list[Point],
-    line_start: Point,
-    line_end: Point,
+    points_to_mirror: list[Point2],
+    line_start: Point2,
+    line_end: Point2,
     by_midpoint: bool = False,
     side: str = "left",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -72,9 +84,9 @@ def mirror_points_across_line(
 
 
 def perpendicular_bisector(
-    line_start: Point,
-    line_end: Point,
-) -> tuple[Point, Point]:
+    line_start: Point2,
+    line_end: Point2,
+) -> tuple[Point2, Point2]:
     """
     This function calculates the perpendicular bisector of a line defined by two points (line_start and line_end).
 

@@ -1,5 +1,5 @@
 from collections import Counter
-from typing import Iterable
+from typing import Iterable, Any
 
 import numpy as np
 from loguru import logger
@@ -26,7 +26,6 @@ from .passages import (
     find_passages_between_regions,
     update_passage_connections,
 )
-from .utils import TuplePoint
 from .utils.misc_utils import get_config, get_neighbors4
 
 EMPTY_REGION_INDEX = 0
@@ -35,27 +34,22 @@ EMPTY_REGION_INDEX = 0
 def map_segmentation(
     bot: BotAIInternal, configs_path: str = "MapSegmentation\configs"
 ) -> SegmentedMap:
-    def mirror_points(points: Iterable[Point2]) -> list[Point2]:
-        map_center = bot.game_info.map_center
-        line_start = min(bot.start_location, bot.enemy_start_locations[0])
-        line_end = max(bot.start_location, bot.enemy_start_locations[0])
-        line_start, line_end = perpendicular_bisector(line_start, line_end)
+    """
+    Performs map segmentation based on the given bot and configuration path.
 
-        # center reflection
-        if (line_start + line_end) / 2 == map_center:
-            points, mirrored, middle = mirror_points_across_line(
-                points, line_start, line_end, by_midpoint=True, side="left"
-            )
-        else:
-            points, mirrored, middle = mirror_points_across_line(
-                points, line_start, line_end, side="left"
-            )
+    Args:
+        bot (BotAIInternal): The bot object containing game information.
+        configs_path (str, optional): The path to the configuration files. Defaults to "MapSegmentation\configs".
 
-        return map(Point2, np.concatenate([middle, points, mirrored]))
+    Returns:
+        SegmentedMap: The segmented map object containing regions, passages, and other information.
+    """
 
-    def propagete(points: Iterable[Point2], region_config: str) -> None:
-        points = mirror_points(points)
-
+    def propagete(
+        points: Iterable[Point2],
+        region_config: dict[str, Any],
+    ) -> None:
+        """Propagates a region from a list of points"""
         max_value = np.max(segmentation_grid) + 1
         for i, location in enumerate(points):
             if segmentation_grid[location.rounded] == -1:
@@ -65,18 +59,28 @@ def map_segmentation(
                     grid=segmentation_grid,
                     scaning_grid=scaning_grid,
                     game_info=bot.game_info,
-                    max_distance=region_config["max_distance"],
-                    filter_angle=region_config["filter_angle"],
+                    max_distance=region_config.get("max_distance", 25),
+                    filter_angle=region_config.get("filter_angle", np.pi * 0.6),
                 )
 
+    # -------------------------------------------------------------
+    logger.info("Starting map segmentation")
     config = get_config(bot.game_info.map_name, configs_path)
     map_center = bot.game_info.map_center
 
     placement_grid = bot.game_info.placement_grid.data_numpy.T
     pathing_grid = bot.game_info.pathing_grid.data_numpy.T
 
+    # calculate the perpendicular bisector of the line
+    # between the bot's start location and the enemy's start location
+    line_start = min(bot.start_location, bot.enemy_start_locations[0])
+    line_end = max(bot.start_location, bot.enemy_start_locations[0])
+    segment = perpendicular_bisector(line_start, line_end)
+
     # find ramps and basics choke points
     passages = find_passages(bot.game_info, bot.destructables, bot.mineral_field)
+    ramps = [passage for passage in passages if isinstance(passage, Ramp)]
+    chokes = [passage for passage in passages if isinstance(passage, ChokePoint)]
 
     # prepare the grids
     scaning_grid = pathing_grid.copy()
@@ -88,46 +92,42 @@ def map_segmentation(
             segmentation_grid[indices] = 0
             scaning_grid[indices] = 0
 
-    # create the regions from the base locations
-    logger.info("Propagating base locations")
-    propagete(bot.expansion_locations_list, config["bases"])
+    # locations
+    locations = {
+        "bases": bot.expansion_locations_list,
+        "watch_towers": (unit.position for unit in bot.watchtowers),
+        "ramps": get_propagation_locations(
+            ramps, map_center, config["propagations"]["ramps"]
+        ),
+        "chokes": get_propagation_locations(
+            chokes, map_center, config["propagations"]["chokes"]
+        ),
+    }
 
-    # create the regions from the watch towers
-    watch_towers_config = config["watch_towers"]
-    if watch_towers_config["enabled"]:
-        logger.info("Propagating watch towers")
-        propagete((unit.position for unit in bot.watchtowers), watch_towers_config)
+    # propagate the regions
+    for name, points in locations.items():
+        region_config = config["propagations"][name]
 
-    # create the regions from the ramps and map center
-    logger.info("Propagating ramps")
-    locations = [map_center]
-    ramp_config = config["ramps"]
-    for passage in passages:
-        if isinstance(passage, Ramp):
-            locations.extend(
-                passage.calculate_side_points(ramp_config["distance_multiplier"])
+        if not region_config["enabled"]:
+            logger.info(f"Skipping {name}")
+            continue
+
+        logger.info(f"Propagating {name}")
+
+        if region_config.get("mirror", False):
+            points = mirror_points(
+                points,
+                map_center,
+                segment,
+                side=region_config.get("mirror_side", "left"),
             )
 
-    locations.sort(key=lambda point: point.distance_to(map_center))
-    propagete(locations, ramp_config)
+        propagete(points, region_config)
 
-    # create the region from choke points
-    logger.info("Propagating choke points")
-    locations = []
-    choke_config = config["chokes"]
-    for passage in passages:
-        if isinstance(passage, ChokePoint):
-            locations.extend(
-                passage.calculate_side_points(choke_config["distance_multiplier"])
-            )
-
-    locations.sort(key=lambda point: point.distance_to(map_center))
-    propagete(locations, choke_config)
-
-    # clear and relabel the grid
     logger.info("Clearing and relabeling the grid")
     clear_and_relabel_grid(segmentation_grid)
 
+    logger.info("Finding additional passages")
     passages += find_cliff_passages(bot.game_info, passages)
     passages += find_passages_between_regions(segmentation_grid, bot.game_info)
     passages = update_passage_connections(passages, segmentation_grid)
@@ -135,6 +135,7 @@ def map_segmentation(
     logger.info("Creating regions")
     regions = create_regions(bot, segmentation_grid, passages)
 
+    # create the segmented map
     segmented_map = SegmentedMap(
         name=bot.game_info.map_name,
         regions_grid=segmentation_grid,
@@ -145,7 +146,67 @@ def map_segmentation(
         config=config,
     )
 
+    logger.info("Map segmentation complete")
     return segmented_map
+
+
+def mirror_points(
+    points: Iterable[Point2],
+    map_center: Point2,
+    segment: tuple[Point2, Point2],
+    side="left",
+) -> list[Point2]:
+    """
+    Mirrors the given points across a line segment.
+
+    Args:
+        points (Iterable[Point2]): The points to be mirrored.
+        map_center (Point2): The center of the map.
+        segment (tuple[Point2, Point2]): The line segment across which the points will be mirrored.
+        side (str, optional): The side of the line segment to mirror the points. Defaults to "left".
+
+    Returns:
+        list[Point2]: The mirrored points, sorted by their distance to the map center.
+    """
+    line_start, line_end = segment
+
+    # center reflection
+    if (line_start + line_end) / 2 == map_center:
+        points, mirrored, middle = mirror_points_across_line(
+            points, line_start, line_end, by_midpoint=True, side=side
+        )
+    else:
+        points, mirrored, middle = mirror_points_across_line(
+            points, line_start, line_end, side=side
+        )
+
+    locations = map(Point2, np.concatenate([middle, points, mirrored]))
+    return sorted(locations, key=lambda point: point.distance_to(map_center))
+
+
+def get_propagation_locations(
+    passages: list[Passage], map_center: Point2, config: dict[str, int]
+) -> list[Point2]:
+    """
+    Get the propagation locations for map segmentation.
+
+    Args:
+        passages (list[Passage]): List of passages.
+        map_center (Point2): Center point of the map.
+        config (dict[str, int]): Configuration dictionary.
+
+    Returns:
+        list[Point2]: List of propagation locations.
+    """
+    locations = [map_center]
+    for passage in passages:
+        if isinstance(passage, Ramp):
+            locations.extend(
+                passage.calculate_side_points(config["distance_multiplier"])
+            )
+
+    locations.sort(key=lambda point: point.distance_to(map_center))
+    return locations
 
 
 def create_regions(
@@ -166,6 +227,7 @@ def create_regions(
     def get_ids_map(
         point_types: dict[str, Iterable[Point2]],
     ) -> dict[str, dict[int, list[int]]]:
+        """Creates a map of region ids to points"""
         ids_map = {}
 
         for point_type, points in point_types.items():
@@ -190,15 +252,18 @@ def create_regions(
     )
 
     for region_id in range(1, max_value + 1):
+        # get the region data
         base = ids_map["bases"].get(region_id, [None])[0]
         watch_tower = ids_map["watch_towers"].get(region_id, [None])[0]
         region_vision_blockers = ids_map["vision_blockers"].get(region_id, ())
 
+        # get the region indices and passages
         region_indices = np.where(segmented_grid == region_id)
         region_passages = [
             passage for passage in passages if region_id in passage.connections
         ]
 
+        # create the region
         region = Region(
             id=region_id,
             indices=region_indices,
@@ -216,6 +281,14 @@ def create_regions(
 def clear_and_relabel_grid(
     segmented_grid: np.ndarray, min_size: int = 50, region_scaling: float = 1.8
 ) -> None:
+    """
+    Clear and relabel the grid by removing small regions and relabeling unlabelled regions.
+
+    Args:
+        segmented_grid (np.ndarray): The segmented grid.
+        min_size (int, optional): The minimum size of a region to be considered. Defaults to 50.
+        region_scaling (float, optional): The scaling factor for region size comparison. Defaults to 1.8.
+    """
     max_value = np.max(segmented_grid)
     # find the unlabbeled regions
     unlabbeled_regions = flood_fill_all(
@@ -233,7 +306,7 @@ def clear_and_relabel_grid(
     # remove regions that are too small or are surrounded by a larger region
     for region_id in range(1, max_value + 1):
         indices = np.where(segmented_grid == region_id)
-        region_points = [TuplePoint(x, y) for x, y in zip(*indices)]
+        region_points = [Point2((x, y)) for x, y in zip(*indices)]
 
         region_size = len(region_points)
         if region_size == 0:
@@ -245,20 +318,25 @@ def clear_and_relabel_grid(
             get_neighbors=get_neighbors4,
         )
         x, y = zip(*region_points)
-
         tiles_per_region = Counter((segmented_grid[point] for point in surrounding))
+
+        # if the region is too small or is surrounded by a larger region
         if tiles_per_region and (
             (val := tiles_per_region.most_common(1)[0])[1] ** region_scaling
             >= region_size
             or region_size < min_size
         ):
             segmented_grid[x, y] = val[0]
+
+        # if the region is too small and is not surrounded by a larger region
         elif region_size < 10:
+            # find the closest region
             surrounding = find_surrounding(
                 region_points, lambda point: segmented_grid[point] > 0
             )
             tiles_per_region = Counter((segmented_grid[point] for point in surrounding))
 
+            # if there is a closest region then add the region to it otherwise remove the region
             if tiles_per_region:
                 val = tiles_per_region.most_common(1)[0]
                 segmented_grid[x, y] = val[0]
@@ -280,6 +358,17 @@ def propagate_region(
     max_distance: int = 25,
     filter_angle: float = np.pi * 0.6,
 ) -> None:
+    """Propagates a region on the grid starting from the given location.
+
+    Args:
+        location (Point2): The starting location for region propagation.
+        region_id (int): The ID of the region to be propagated.
+        grid (np.ndarray): The grid representing the map.
+        scaning_grid (np.ndarray): The grid used for scanning unbuildable points.
+        game_info (GameInfo): Information about the game.
+        max_distance (int, optional): The maximum distance to scan for unbuildable points. Defaults to 25.
+        filter_angle (float, optional): The angle used to filter obtuse points. Defaults to np.pi * 0.6.
+    """
     def find_chokes(points: list[Point2]) -> list[tuple[np.ndarray, np.ndarray]]:
         """Finds the choke points in a list of points"""
         return [
@@ -323,11 +412,13 @@ def propagate_region(
     depth_points_list = filter_obtuse_points(depth_points_raw, location, filter_angle)
     depth_points_list = [point for point in depth_points_list]
 
+    # find the choke points and add them to the grid
     chokes = find_chokes(depth_points_list)
     add_chokes(chokes, from_value=-1, to_value=-2)
 
     location = location.rounded
 
+    # add the region to the grid
     flood_fill(
         grid,
         location,
@@ -336,4 +427,5 @@ def propagate_region(
         in_place=True,
     )
 
+    # remove the added choke points
     add_chokes(chokes, from_value=-2, to_value=-1)
