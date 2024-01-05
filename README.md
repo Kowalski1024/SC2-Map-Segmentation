@@ -5,7 +5,7 @@ It's plugin for Python SC2 API [BurnySc2/python-sc2](https://github.com/BurnySc2
 
 It's still in development, has much less features than SC2MapAnalysis.
 ### Example of segmentation
-![](data\map_pool\SiteDeltaAIE.png)
+![SiteDeltaAIE segmentation](data\map_pool\SiteDeltaAIE.png)
 Top view of the map: https://liquipedia.net/commons/images/7/77/Site_Delta.jpg
 
 Other examples from _Sc2 AI Arena 2023 Season 3_ map pool are in [data\map_pool](data\map_pool) folder.
@@ -18,7 +18,7 @@ Tiles that create a large angle between the previous tile and the seed point are
 Next, the algorithm performs a flood fill operation from the seed point, avoiding crossing through any choke points.
 
 Example of depth scan, white point is seed point, greed points are scanned points, red lines are choke points:
-![](data\depth_scan.png)
+![Depth scan image](data\depth_scan.png)
 
 Finally, the map undergoes a cleanup process. This includes steps such as removing small regions and merging regions that are in close proximity to each other.
 
