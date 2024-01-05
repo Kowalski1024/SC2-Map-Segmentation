@@ -16,10 +16,10 @@ The algorithm operates by identifying key locations (referred to as 'seed points
 
 Tiles that create a large angle between the previous tile and the seed point are filtered out. Points that are significantly distant from the previous point are identified as potential choke points. These choke points are then marked on the map.
 
-Next, the algorithm performs a flood fill operation from the seed point, avoiding crossing through any choke points.
-
 Example of depth scan, white point is seed point, greed points are scanned points, red lines are choke points:
 ![Depth scan image](data/depth_scan.png)
+
+Next, the algorithm performs a flood fill operation from the seed point, avoiding crossing through any choke points.
 
 Finally, the map undergoes a cleanup process. This includes steps such as removing small regions and merging regions that are in close proximity to each other.
 
