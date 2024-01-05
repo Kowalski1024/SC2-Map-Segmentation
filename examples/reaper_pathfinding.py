@@ -6,9 +6,9 @@ from sc2.player import Bot, Computer
 from sc2.position import Point3
 from sc2.unit import UnitTypeId
 
-from MapSegmentation.map_segmentation import map_segmentation
-from MapSegmentation.pathing import Djikstra
-from MapSegmentation.dataclasses.passage import Ramp, Passage, ChokePoint, Cliff
+from mapsegmentation.map_segmentation import map_segmentation
+from mapsegmentation.pathing import Djikstra
+from mapsegmentation.dataclasses.passage import Ramp, Passage, ChokePoint, Cliff
 
 import matplotlib.pyplot as plt
 
@@ -41,7 +41,6 @@ class ReaperExample(BotAI):
         plt.subplot(1, 2, 1)
         plt.imshow(self.game_info.placement_grid.data_numpy)
         plt.title("Placement grid")
-        plt.savefig(f"{self.game_info.map_name}.png")
         plt.show()
 
         self.djikstra = Djikstra(self.map)
