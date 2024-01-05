@@ -1,0 +1,30 @@
+[tool.black]
+line-length = 99
+include = '\.pyi?$'
+exclude = '''
+/(
+    .git
+  | .hg
+  | .mypy_cache
+  | .tox
+  | venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | .pytest
+)/
+'''
+
+[tool.ruff]
+select = [
+  "E",  # pycodestyle errors
+  "W",  # pycodestyle warnings
+  "F",  # pyflakes
+  "C",  # flake8-comprehensions
+  "B",  # flake8-bugbear
+]
+
+ignore = [
+  "E501",  # line too long, handled by black
+]
