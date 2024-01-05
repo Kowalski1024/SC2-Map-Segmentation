@@ -1,5 +1,5 @@
 # Starcraft 2 Map Segmentation
-This is a plugin for the Python SC2 API, [BurnySc2/python-sc2](https://github.com/BurnySc2/python-sc2).
+This is a plugin for the Python SC2 API, [python-sc2](https://github.com/BurnySc2/python-sc2).
 
 **SC2 Map Segmentation** provides fully automated segmentation for Starcraft 2 maps. The goal is to offer functionality similar to [SC2MapAnalysis](https://github.com/spudde123/SC2MapAnalysis), but with a focus on dividing the map into smaller regions. This is a feature not currently available in SC2MapAnalysis. Additionally, SC2 Map Segmentation identifies passages between these regions, such as choke points and ramps. It also includes a basic implementation of the Dijkstra pathfinding algorithm.
 
