@@ -6,8 +6,8 @@ from typing import Optional
 import numpy as np
 from matplotlib import pyplot as plt
 
-from mapsegmentation.algorithms import flood_fill
-from mapsegmentation.utils.destructables import change_destructable_status
+from mapsegmentationa.algorithms import flood_fill
+from mapsegmentationa.utils.destructables import change_destructable_status
 from sc2.game_info import GameInfo
 from sc2.position import Point2
 from sc2.units import Units

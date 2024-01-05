@@ -4,9 +4,9 @@ from typing import Iterable, Optional
 
 import numpy as np
 
-import mapsegmentation.utils.debug_utils as debug
-from mapsegmentation.algorithms import group_connected_points
-from mapsegmentation.utils.misc_utils import get_terrain_z_height
+import mapsegmentationa.utils.debug_utils as debug
+from mapsegmentationa.algorithms import group_connected_points
+from mapsegmentationa.utils.misc_utils import get_terrain_z_height
 from sc2.client import Client
 from sc2.game_info import GameInfo
 from sc2.position import Point2, Point3

@@ -4,8 +4,8 @@ from typing import Optional
 
 import numpy as np
 
-from mapsegmentation.utils.debug_utils import GREEN, WHITE
-from mapsegmentation.utils.misc_utils import get_terrain_z_height
+from mapsegmentationa.utils.debug_utils import GREEN, WHITE
+from mapsegmentationa.utils.misc_utils import get_terrain_z_height
 from sc2.client import Client
 from sc2.game_info import GameInfo
 from sc2.position import Point2, Point3

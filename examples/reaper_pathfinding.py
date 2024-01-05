@@ -6,9 +6,9 @@ from sc2.player import Bot, Computer
 from sc2.position import Point3
 from sc2.unit import UnitTypeId
 
-from mapsegmentation.map_segmentation import map_segmentation
-from mapsegmentation.pathing import Djikstra
-from mapsegmentation.dataclasses.passage import Ramp, Passage, ChokePoint, Cliff
+from mapsegmentationa.map_segmentation import map_segmentation
+from mapsegmentationa.pathing import Djikstra
+from mapsegmentationa.dataclasses.passage import Ramp, Passage, ChokePoint, Cliff
 
 import matplotlib.pyplot as plt
 
