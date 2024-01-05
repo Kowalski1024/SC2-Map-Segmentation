@@ -129,7 +129,7 @@ def map_segmentation(
         propagete(points, region_config)
 
     logger.debug("Clearing and relabeling the grid")
-    clear_and_relabel_grid(segmentation_grid)
+    clear_and_relabel_grid(segmentation_grid, config["region_min_size"], config["region_scaling"])
 
     logger.debug("Finding additional passages")
     passages += find_cliff_passages(

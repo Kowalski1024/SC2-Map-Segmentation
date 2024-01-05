@@ -12,6 +12,16 @@ from MapSegmentation.dataclasses.passage import Ramp, Passage, ChokePoint, Cliff
 
 import matplotlib.pyplot as plt
 
+"""
+This example shows how to use the MapSegmentation library to segment a map.
+A Reaper is spawned and a path is calculated from its position to the enemy start location, avoiding ramps.
+You can change the `avoid` parameter to exclude different types of passages or None to include all passages.
+
+The map is segmented using the map_segmentation function, which returns a SegmentedMap object.
+
+Debug drawing is used to show the path and the regions and passages of the map.
+"""
+
 class ReaperExample(BotAI):
     def __init__(self):
         super().__init__()
@@ -23,7 +33,15 @@ class ReaperExample(BotAI):
         self.map = map_segmentation(self)
 
         print("Close the plot window to continue")
-        plt.imshow(self.map.regions_grid)
+        plt.figure(figsize=(12, 6))
+        plt.axis("off")
+        plt.title(f"Map: {self.game_info.map_name}")
+        plt.subplot(1, 2, 2)
+        self.map.imshow("Segmented grid")
+        plt.subplot(1, 2, 1)
+        plt.imshow(self.game_info.placement_grid.data_numpy)
+        plt.title("Placement grid")
+        plt.savefig(f"{self.game_info.map_name}.png")
         plt.show()
 
         self.djikstra = Djikstra(self.map)
@@ -72,7 +90,7 @@ def main():
     # SiteDeltaAIE
 
     run_game(
-        maps.get("SiteDeltaAIE"),
+        maps.get("GresvanAIE"),
         [Bot(Race.Terran, ReaperExample()), Computer(Race.Protoss, Difficulty.Easy)],
         realtime=True,
     )

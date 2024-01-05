@@ -1,0 +1,34 @@
+{
+    "region_min_size": 20,
+    "region_scaling": 2,
+    "propagations": {
+        "bases": {
+            "enabled": true,
+            "min_size": 25,
+            "filter_angle": 1.75,
+            "max_distance": 30
+        },
+        "watch_towers": {
+            "enabled": false,
+            "min_size": 25,
+            "filter_angle": 1.75,
+            "max_distance": 30
+        },
+        "ramps": {
+            "enabled": true,
+            "mirror": true,
+            "min_size": 25,
+            "filter_angle": 1.75,
+            "max_distance": 30,
+            "distance_multiplier": 4
+        },
+        "chokes": {
+            "enabled": true,
+            "mirror": true,
+            "min_size": 25,
+            "filter_angle": 1.75,
+            "max_distance": 30,
+            "distance_multiplier": 4
+        }
+    }
+}
