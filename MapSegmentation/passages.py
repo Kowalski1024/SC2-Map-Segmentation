@@ -88,6 +88,7 @@ def find_passages(
 def find_cliff_passages(
     game_info: GameInfo,
     passages: Iterable[Passage],
+    mineral_fields: Iterable[Unit],
 ) -> list[Passage]:
     """
     Finds cliff passages in the given game map.
@@ -95,14 +96,29 @@ def find_cliff_passages(
     Args:
         game_info (GameInfo): Information about the game map.
         passages (Iterable[Passage]): Existing passages.
+        mineral_fields (Iterable[Unit]): Mineral fields.
 
     Returns:
         list[Passage]: List of cliff passages found.
     """
+    pathing_grid = game_info.pathing_grid.data_numpy.copy().T
+
+    # remove existing passages from height grid
+    for passage in passages:
+        pathing_grid[passage.tiles_indices] = 0
+
     height_grid = pathable_height_grid(
         game_info.terrain_height.data_numpy.T,
-        game_info.placement_grid.data_numpy.T,
+        pathing_grid,
     )
+
+    # remove mineral fields from height grid
+    if mineral_fields:
+        for unit in mineral_fields:
+            pos = unit.position.rounded
+            x = int(pos[0]) - 1
+            y = int(pos[1])
+            height_grid[x : (x + 2), y] = 0
 
     # finding connected cliffs using union find
     find_union = FindUnion([])

@@ -4,6 +4,7 @@ from itertools import chain
 from typing import Optional
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from MapSegmentation.algorithms import flood_fill
 from MapSegmentation.utils.destructables import change_destructable_status
@@ -84,6 +85,35 @@ class SegmentedMap:
         segmented_map.game_info = game_info
         return segmented_map
 
+    def imshow(self, title=None, region_labels=True) -> None:
+        """
+        Display the segmented map.
+
+        Args:
+            title (str, optional): The title of the plot. Defaults to None.
+            region_labels (bool, optional): Whether to display region labels. Defaults to True.
+        """
+        cmap = plt.cm.get_cmap('plasma', len(self.regions))
+        cmap.set_under(color='#440154')
+
+        plt.imshow(self.regions_grid.T, cmap=cmap, vmin=0.01)
+
+        if title:
+            plt.title(title)
+
+        if region_labels:
+            for region in self.regions.values():
+                plt.text(
+                    *region.center,
+                    region.id,
+                    color="black",
+                    ha="center",
+                    va="center",
+                    bbox={"facecolor": "white", "edgecolor": "black", "pad": 1},
+                    size=8,
+                )
+
+
     def update_passability(self, destructables: Units, minerals: Units) -> None:
         """
         Updates the passability of the map passages based on the presence of destructibles and minerals.
@@ -98,9 +128,7 @@ class SegmentedMap:
                 continue
 
             # update destructables and minerals
-            passage.destructables.intersection_update(
-                {d.position for d in destructables}
-            )
+            passage.destructables.intersection_update({d.position for d in destructables})
             passage.minerals.intersection_update({m.position for m in minerals})
 
             if passage.passable:
@@ -119,7 +147,10 @@ class SegmentedMap:
             surrounding_tiles = passage.surrounding_tiles
             random_point = next(iter(surrounding_tiles))
             tiles = frozenset.union(passage.tiles, surrounding_tiles)
-            filled = flood_fill(random_point, lambda p, tiles=tiles, pathing_grid=pathing_grid: p in tiles and pathing_grid[p])
+            filled = flood_fill(
+                random_point,
+                lambda p, tiles=tiles, pathing_grid=pathing_grid: p in tiles and pathing_grid[p],
+            )
 
             # if surrounding_tiles is subset of flood, passage is passable
             if surrounding_tiles.issubset(filled):

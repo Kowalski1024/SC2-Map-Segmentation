@@ -132,7 +132,9 @@ def map_segmentation(
     clear_and_relabel_grid(segmentation_grid)
 
     logger.debug("Finding additional passages")
-    passages += find_cliff_passages(bot.game_info, passages)
+    passages += find_cliff_passages(
+        bot.game_info, passages, bot.mineral_field
+    )
     passages += find_passages_between_regions(segmentation_grid, bot.game_info)
     passages = update_passage_connections(passages, segmentation_grid)
 

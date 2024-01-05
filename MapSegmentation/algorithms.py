@@ -10,23 +10,19 @@ from .utils.data_structures import FindUnion
 from .utils.misc_utils import get_neighbors8
 
 
-def pathable_height_grid(
-    terrain_height: np.ndarray, placement_grid: np.ndarray
-) -> np.ndarray:
+def pathable_height_grid(terrain_height: np.ndarray, grid: np.ndarray) -> np.ndarray:
     """
-    Generates a height grid where only the pathable tiles have their height value,
-    while non-pathable tiles have a height of 0. Also fixes in some cases where
-    the height grid is not consistent with the placement grid.
+    Creates a height grid where the height of non-pathable points is set to 0.
 
     Args:
-        terrain_height (np.ndarray): The original terrain height grid.
-        placement_grid (np.ndarray): The placement grid indicating pathable and non-pathable tiles.
+        terrain_height (np.ndarray): The terrain height grid.
+        grid (np.ndarray): The pathing grid or buildability grid.
 
     Returns:
-        np.ndarray: The height grid with only pathable tiles having their height value.
+        np.ndarray: The height grid.
     """
     height_grid = terrain_height.copy()
-    pathing_grid = placement_grid
+    pathing_grid = grid
 
     group_of_tiles = flood_fill_all(
         pathing_grid.shape,
