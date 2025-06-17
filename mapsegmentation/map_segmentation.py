@@ -75,6 +75,19 @@ def map_segmentation(
     placement_grid = bot.game_info.placement_grid.data_numpy.T
     pathing_grid = bot.game_info.pathing_grid.data_numpy.T
 
+    # fixed bug in map IncorporealAIE where xel'naga tower prevented passability through segment
+    for tower in bot.watchtowers:
+        position = tower.position
+        pos = tower.position.rounded  # center tile
+        radius = 1  # most neutral buildings are 2x2 (can be adjusted based on size)
+        for dx in range(-radius, radius):
+            for dy in range(-radius, radius):
+                x = int(pos.x + dx)
+                y = int(pos.y + dy)
+                if 0 <= x < placement_grid.shape[0] and 0 <= y < placement_grid.shape[1]:
+                    placement_grid[x][y] = 0
+                    pathing_grid[x][y] = 0
+
     # calculate the perpendicular bisector of the line
     # between the bot's start location and the enemy's start location
     line_start = min(bot.start_location, bot.enemy_start_locations[0])
